@@ -1,0 +1,4 @@
+(crontab -l 2>/dev/null; echo "* * * * * /root/send-reminders-cron.sh") | crontab -
+
+ver se deu certo: crontab -l
+
