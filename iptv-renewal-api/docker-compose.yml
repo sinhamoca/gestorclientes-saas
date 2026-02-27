@@ -1,0 +1,256 @@
+# ========================================
+# IPTV RENEWAL API - DOCKER COMPOSE
+# 
+# Timezone: America/Sao_Paulo (UTC-3) em todos os containers
+#
+# Serviços fixos (infraestrutura):
+# - postgres: Banco de dados (porta 5433)
+# - gateway: API Gateway (porta 4000)
+# - dashboard: Painel do cliente (porta 3000)
+# - admin: Painel administrativo (porta 3001)
+#
+# Microserviços de renovação:
+# - sigma: Renovação Sigma via Cloudflare Worker (porta 4001)
+# - cloudnation: Renovação CloudNation/Live21 via Turnstile (porta 4002)
+# - koffice: Renovação Koffice (porta 4003)
+# - uniplay: Renovação Uniplay via proxy SOCKS5 (porta 4004)
+# - club: Renovação Club (dashboard.bz) via hCaptcha (porta 4005)
+# - rush: Renovação Rush (paineloffice.click) API REST pura (porta 4006)
+# - painelfoda: Renovação PainelFoda com CSRF/cookies (porta 4007)
+# ========================================
+
+version: '3.8'
+
+x-common-env: &common-env
+  TZ: America/Sao_Paulo
+
+services:
+  # ── POSTGRESQL ──
+  postgres:
+    image: postgres:16-alpine
+    container_name: iptv-api-postgres
+    restart: unless-stopped
+    environment:
+      <<: *common-env
+      POSTGRES_DB: iptv_renewal_api
+      POSTGRES_USER: iptv_api
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-SenhaSeguraProducao2024}
+      PGTZ: America/Sao_Paulo
+    command: >
+      postgres
+        -c timezone=America/Sao_Paulo
+        -c log_timezone=America/Sao_Paulo
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5433:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U iptv_api -d iptv_renewal_api"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - iptv-api-network
+
+  # ── API GATEWAY ──
+  gateway:
+    build: ./gateway
+    container_name: iptv-api-gateway
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      <<: *common-env
+      PORT: 4000
+      NODE_ENV: production
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: iptv_renewal_api
+      POSTGRES_USER: iptv_api
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-SenhaSeguraProducao2024}
+      JWT_SECRET: ${JWT_SECRET:-SuaChaveJWTMuitoSegura2024}
+      JWT_EXPIRES_IN: 7d
+      RATE_LIMIT_WINDOW_MS: 60000
+      RATE_LIMIT_MAX_REQUESTS: 60
+      MIN_CREDIT_PURCHASE: 10.00
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@iptvapi.com}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-admin123456}
+      # URLs dos microserviços
+      SIGMA_SERVICE_URL: http://sigma:4001
+      CLOUDNATION_SERVICE_URL: http://cloudnation:4002
+      KOFFICE_SERVICE_URL: http://koffice:4003
+      UNIPLAY_SERVICE_URL: http://uniplay:4004
+      CLUB_SERVICE_URL: http://club:4005
+      RUSH_SERVICE_URL: http://rush:4006
+      PAINELFODA_SERVICE_URL: http://painelfoda:4007
+    ports:
+      - "4000:4000"
+    networks:
+      - iptv-api-network
+
+  # ── DASHBOARD CLIENTE ──
+  dashboard:
+    build: ./dashboard
+    container_name: iptv-api-dashboard
+    restart: unless-stopped
+    depends_on:
+      - gateway
+    environment:
+      <<: *common-env
+    ports:
+      - "3000:3000"
+    networks:
+      - iptv-api-network
+
+  # ── DASHBOARD ADMIN ──
+  admin:
+    build: ./admin
+    container_name: iptv-api-admin
+    restart: unless-stopped
+    depends_on:
+      - gateway
+    environment:
+      <<: *common-env
+    ports:
+      - "3001:3001"
+    networks:
+      - iptv-api-network
+
+  # ══════════════════════════════════════
+  # MICROSERVIÇOS DE RENOVAÇÃO
+  # ══════════════════════════════════════
+
+  # ── SIGMA (porta 4001) ──
+  sigma:
+    build: ./services/sigma
+    container_name: iptv-svc-sigma
+    restart: unless-stopped
+    depends_on:
+      - gateway
+    environment:
+      <<: *common-env
+      PORT: 4001
+      GATEWAY_URL: http://gateway:4000
+      SESSION_MAX_IDLE_MINUTES: 1440
+      SESSION_MAX_AGE_MINUTES: 43200
+      CLEANUP_INTERVAL_MINUTES: 10
+    ports:
+      - "4001:4001"
+    networks:
+      - iptv-api-network
+
+  # ── CLOUDNATION / LIVE21 (porta 4002) ──
+  cloudnation:
+    build: ./services/cloudnation
+    container_name: iptv-svc-cloudnation
+    restart: unless-stopped
+    depends_on:
+      - gateway
+    environment:
+      <<: *common-env
+      PORT: 4002
+      GATEWAY_URL: http://gateway:4000
+      SESSION_MAX_IDLE_MINUTES: 1440
+      SESSION_MAX_AGE_MINUTES: 43200
+      CLEANUP_INTERVAL_MINUTES: 5
+    ports:
+      - "4002:4002"
+    networks:
+      - iptv-api-network
+
+  # ── KOFFICE (porta 4003) ──
+  koffice:
+    build: ./services/koffice
+    container_name: iptv-svc-koffice
+    restart: unless-stopped
+    depends_on:
+      - gateway
+    environment:
+      <<: *common-env
+      PORT: 4003
+      GATEWAY_URL: http://gateway:4000
+      SESSION_MAX_IDLE_MINUTES: 1440
+      SESSION_MAX_AGE_MINUTES: 43200
+      CLEANUP_INTERVAL_MINUTES: 5
+    ports:
+      - "4003:4003"
+    networks:
+      - iptv-api-network
+
+  # ── UNIPLAY (porta 4004) ──
+  uniplay:
+    build: ./services/uniplay
+    container_name: iptv-svc-uniplay
+    restart: unless-stopped
+    depends_on:
+      - gateway
+    environment:
+      <<: *common-env
+      PORT: 4004
+      GATEWAY_URL: http://gateway:4000
+    ports:
+      - "4004:4004"
+    networks:
+      - iptv-api-network
+
+  # ── CLUB (porta 4005) ──
+  club:
+    build: ./services/club
+    container_name: iptv-svc-club
+    restart: unless-stopped
+    depends_on:
+      - gateway
+    environment:
+      <<: *common-env
+      PORT: 4005
+      GATEWAY_URL: http://gateway:4000
+    ports:
+      - "4005:4005"
+    networks:
+      - iptv-api-network
+
+  # ── RUSH (porta 4006) ──
+  rush:
+    build: ./services/rush
+    container_name: iptv-svc-rush
+    restart: unless-stopped
+    depends_on:
+      - gateway
+    environment:
+      <<: *common-env
+      PORT: 4006
+      GATEWAY_URL: http://gateway:4000
+      SESSION_MAX_IDLE_MINUTES: 1440
+      SESSION_MAX_AGE_MINUTES: 43200
+      CLEANUP_INTERVAL_MINUTES: 5
+    ports:
+      - "4006:4006"
+    networks:
+      - iptv-api-network
+
+  # ── PAINELFODA (porta 4007) ──
+  painelfoda:
+    build: ./services/painelfoda
+    container_name: iptv-svc-painelfoda
+    restart: unless-stopped
+    depends_on:
+      - gateway
+    environment:
+      <<: *common-env
+      PORT: 4007
+      GATEWAY_URL: http://gateway:4000
+      SESSION_MAX_IDLE_MINUTES: 1440
+      SESSION_MAX_AGE_MINUTES: 43200
+      CLEANUP_INTERVAL_MINUTES: 5
+    ports:
+      - "4007:4007"
+    networks:
+      - iptv-api-network
+
+volumes:
+  postgres_data:
+
+networks:
+  iptv-api-network:
+    driver: bridge

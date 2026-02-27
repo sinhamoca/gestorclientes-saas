@@ -1,0 +1,16 @@
+{
+  "name": "iptv-club-service",
+  "version": "1.0.0",
+  "description": "Microserviço de renovação Club (dashboard.bz) - hCaptcha + Anti-Captcha",
+  "type": "module",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "axios": "^1.6.2",
+    "cors": "^2.8.5"
+  }
+}
