@@ -1,0 +1,1239 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>IPTV Renewal API — Documentação</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg-deep: #06080f;
+      --bg-base: #0b0f1a;
+      --bg-card: #111827;
+      --bg-card-hover: #151d2e;
+      --bg-code: #0d1117;
+      --border: #1e293b;
+      --border-light: #334155;
+      --text: #e2e8f0;
+      --text-muted: #94a3b8;
+      --text-dim: #64748b;
+      --accent: #f59e0b;
+      --accent-glow: rgba(245, 158, 11, 0.15);
+      --green: #10b981;
+      --green-bg: rgba(16, 185, 129, 0.08);
+      --blue: #3b82f6;
+      --blue-bg: rgba(59, 130, 246, 0.08);
+      --red: #ef4444;
+      --red-bg: rgba(239, 68, 68, 0.08);
+      --purple: #a78bfa;
+      --purple-bg: rgba(167, 139, 250, 0.08);
+      --orange: #f97316;
+      --orange-bg: rgba(249, 115, 22, 0.08);
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: var(--bg-deep);
+      color: var(--text);
+      line-height: 1.65;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    code, pre, .mono { font-family: 'JetBrains Mono', monospace; }
+
+    /* ── LAYOUT ── */
+    .wrapper { display: flex; min-height: 100vh; }
+
+    /* ── SIDEBAR NAV ── */
+    .sidebar {
+      width: 280px;
+      position: fixed;
+      top: 0; left: 0; bottom: 0;
+      background: var(--bg-base);
+      border-right: 1px solid var(--border);
+      overflow-y: auto;
+      z-index: 50;
+      padding: 32px 0;
+      scrollbar-width: thin;
+      scrollbar-color: #1e293b transparent;
+    }
+    .sidebar::-webkit-scrollbar { width: 4px; }
+    .sidebar::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 2px; }
+
+    .sidebar-logo {
+      padding: 0 24px 28px;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 20px;
+    }
+    .sidebar-logo h1 {
+      font-size: 15px;
+      font-weight: 800;
+      letter-spacing: -0.3px;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .sidebar-logo h1 .dot {
+      width: 10px; height: 10px;
+      border-radius: 50%;
+      background: var(--green);
+      box-shadow: 0 0 8px var(--green);
+    }
+    .sidebar-logo span { font-size: 11px; color: var(--text-dim); display: block; margin-top: 4px; letter-spacing: 1.5px; text-transform: uppercase; }
+
+    .nav-group { margin-bottom: 6px; }
+    .nav-group-title {
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1.8px;
+      color: var(--text-dim);
+      padding: 12px 24px 6px;
+    }
+    .nav-link {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 24px;
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text-muted);
+      text-decoration: none;
+      transition: all 0.15s;
+      border-left: 2px solid transparent;
+    }
+    .nav-link:hover { color: #fff; background: rgba(255,255,255,0.03); border-left-color: var(--border-light); }
+    .nav-link.active { color: var(--accent); background: var(--accent-glow); border-left-color: var(--accent); }
+    .nav-method {
+      font-size: 9px;
+      font-weight: 700;
+      font-family: 'JetBrains Mono', monospace;
+      padding: 2px 5px;
+      border-radius: 3px;
+      letter-spacing: 0.3px;
+      min-width: 36px;
+      text-align: center;
+    }
+    .method-get { background: var(--green-bg); color: var(--green); }
+    .method-post { background: var(--blue-bg); color: var(--blue); }
+    .method-put { background: var(--orange-bg); color: var(--orange); }
+    .method-del { background: var(--red-bg); color: var(--red); }
+
+    /* ── MAIN CONTENT ── */
+    .content {
+      margin-left: 280px;
+      flex: 1;
+      padding: 48px 56px 120px;
+      max-width: 900px;
+    }
+
+    /* ── HERO ── */
+    .hero { margin-bottom: 56px; }
+    .hero h1 {
+      font-size: 38px;
+      font-weight: 800;
+      letter-spacing: -1px;
+      background: linear-gradient(135deg, #fff 0%, var(--accent) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 12px;
+    }
+    .hero p { font-size: 16px; color: var(--text-muted); max-width: 560px; line-height: 1.7; }
+    .hero-badges { display: flex; gap: 10px; margin-top: 20px; flex-wrap: wrap; }
+    .hero-badge {
+      font-size: 11px;
+      font-weight: 600;
+      padding: 6px 14px;
+      border-radius: 100px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+    }
+    .hero-badge .val { color: var(--accent); }
+
+    /* ── BASE URL ── */
+    .base-url-block {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 20px 24px;
+      margin-bottom: 48px;
+    }
+    .base-url-block label { font-size: 11px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 1px; font-weight: 700; display: block; margin-bottom: 8px; }
+    .base-url-row { display: flex; align-items: center; gap: 12px; }
+    .base-url-input {
+      flex: 1;
+      background: var(--bg-code);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px 14px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 14px;
+      color: var(--accent);
+      outline: none;
+    }
+    .base-url-input:focus { border-color: var(--accent); }
+
+    /* ── SECTIONS ── */
+    .section { margin-bottom: 56px; scroll-margin-top: 32px; }
+    .section-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 24px;
+      padding-bottom: 16px;
+      border-bottom: 1px solid var(--border);
+    }
+    .section-icon {
+      width: 36px; height: 36px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+    }
+    .section-header h2 { font-size: 22px; font-weight: 700; color: #fff; }
+    .section-desc { color: var(--text-muted); font-size: 14px; margin-bottom: 20px; }
+
+    /* ── ENDPOINT CARD ── */
+    .endpoint {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      margin-bottom: 16px;
+      overflow: hidden;
+      transition: border-color 0.2s;
+    }
+    .endpoint:hover { border-color: var(--border-light); }
+    .endpoint.open { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent-glow); }
+
+    .endpoint-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 16px 20px;
+      cursor: pointer;
+      user-select: none;
+    }
+    .endpoint-header:hover { background: var(--bg-card-hover); }
+
+    .method-badge {
+      font-size: 11px;
+      font-weight: 700;
+      font-family: 'JetBrains Mono', monospace;
+      padding: 4px 10px;
+      border-radius: 6px;
+      letter-spacing: 0.5px;
+      min-width: 52px;
+      text-align: center;
+    }
+    .badge-GET { background: var(--green-bg); color: var(--green); border: 1px solid rgba(16,185,129,0.2); }
+    .badge-POST { background: var(--blue-bg); color: var(--blue); border: 1px solid rgba(59,130,246,0.2); }
+    .badge-PUT { background: var(--orange-bg); color: var(--orange); border: 1px solid rgba(249,115,22,0.2); }
+    .badge-DELETE { background: var(--red-bg); color: var(--red); border: 1px solid rgba(239,68,68,0.2); }
+
+    .endpoint-path {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 13px;
+      color: #fff;
+      font-weight: 500;
+    }
+    .endpoint-path .param { color: var(--accent); }
+    .endpoint-title { margin-left: auto; font-size: 12px; color: var(--text-dim); }
+    .endpoint-arrow {
+      color: var(--text-dim);
+      transition: transform 0.2s;
+      font-size: 12px;
+    }
+    .endpoint.open .endpoint-arrow { transform: rotate(180deg); }
+    .endpoint-auth {
+      font-size: 9px;
+      font-weight: 700;
+      padding: 2px 7px;
+      border-radius: 4px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .auth-apikey { background: rgba(245,158,11,0.1); color: var(--accent); border: 1px solid rgba(245,158,11,0.2); }
+    .auth-jwt { background: var(--purple-bg); color: var(--purple); border: 1px solid rgba(167,139,250,0.2); }
+    .auth-public { background: var(--green-bg); color: var(--green); border: 1px solid rgba(16,185,129,0.2); }
+    .auth-any { background: rgba(245,158,11,0.1); color: var(--accent); border: 1px solid rgba(245,158,11,0.2); }
+
+    .endpoint-body {
+      display: none;
+      border-top: 1px solid var(--border);
+      padding: 20px;
+    }
+    .endpoint.open .endpoint-body { display: block; }
+
+    .endpoint-body p { font-size: 13px; color: var(--text-muted); margin-bottom: 16px; line-height: 1.6; }
+
+    /* ── TABLES ── */
+    .params-table { width: 100%; font-size: 13px; border-collapse: collapse; margin-bottom: 16px; }
+    .params-table th {
+      text-align: left;
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--text-dim);
+      padding: 8px 12px;
+      border-bottom: 1px solid var(--border);
+      font-weight: 700;
+    }
+    .params-table td {
+      padding: 10px 12px;
+      border-bottom: 1px solid rgba(30,41,59,0.5);
+      vertical-align: top;
+    }
+    .params-table .pname { font-family: 'JetBrains Mono', monospace; color: var(--accent); font-size: 12px; font-weight: 500; }
+    .params-table .ptype { font-family: 'JetBrains Mono', monospace; color: var(--text-dim); font-size: 11px; }
+    .params-table .pdesc { color: var(--text-muted); }
+    .required { color: var(--red); font-size: 10px; font-weight: 700; margin-left: 4px; }
+
+    /* ── CODE BLOCKS ── */
+    .code-block {
+      position: relative;
+      background: var(--bg-code);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      margin-bottom: 16px;
+      overflow: hidden;
+    }
+    .code-label {
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--text-dim);
+      padding: 10px 16px 0;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .code-block pre {
+      padding: 12px 16px 16px;
+      overflow-x: auto;
+      font-size: 12px;
+      line-height: 1.7;
+      color: var(--text-muted);
+      scrollbar-width: thin;
+      scrollbar-color: #1e293b transparent;
+    }
+    .code-block pre::-webkit-scrollbar { height: 4px; }
+    .code-block pre::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 2px; }
+
+    .copy-btn {
+      background: none;
+      border: 1px solid var(--border);
+      color: var(--text-dim);
+      font-size: 11px;
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      padding: 3px 10px;
+      border-radius: 5px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .copy-btn:hover { border-color: var(--accent); color: var(--accent); }
+    .copy-btn.copied { border-color: var(--green); color: var(--green); }
+
+    /* ── JSON SYNTAX ── */
+    .str { color: #a5d6ff; }
+    .num { color: #79c0ff; }
+    .key { color: #ff7b72; }
+    .bool { color: #d2a8ff; }
+    .null { color: #8b949e; }
+    .comment { color: #484f58; font-style: italic; }
+
+    /* ── ALERTS ── */
+    .alert {
+      padding: 14px 18px;
+      border-radius: 8px;
+      font-size: 13px;
+      margin-bottom: 16px;
+      display: flex;
+      gap: 10px;
+      align-items: flex-start;
+    }
+    .alert-info { background: var(--blue-bg); border: 1px solid rgba(59,130,246,0.15); color: #93c5fd; }
+    .alert-warn { background: var(--accent-glow); border: 1px solid rgba(245,158,11,0.15); color: #fcd34d; }
+    .alert-success { background: var(--green-bg); border: 1px solid rgba(16,185,129,0.15); color: #6ee7b7; }
+
+    /* ── TAG/PILLS ── */
+    .tag {
+      display: inline-block;
+      font-size: 10px;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: 4px;
+      letter-spacing: 0.3px;
+    }
+    .tag-free { background: var(--green-bg); color: var(--green); }
+    .tag-credit { background: var(--accent-glow); color: var(--accent); }
+
+    /* ── RESPONSIVE ── */
+    @media (max-width: 1024px) {
+      .sidebar { display: none; }
+      .content { margin-left: 0; padding: 32px 24px; }
+    }
+
+    /* ── ANIMATIONS ── */
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+    .section { animation: fadeIn 0.3s ease-out both; }
+    .section:nth-child(2) { animation-delay: 50ms; }
+    .section:nth-child(3) { animation-delay: 100ms; }
+    .section:nth-child(4) { animation-delay: 150ms; }
+  </style>
+</head>
+<body>
+  <div class="wrapper">
+    <!-- ═══════════ SIDEBAR ═══════════ -->
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-logo">
+        <h1><span class="dot"></span> IPTV Renewal API</h1>
+        <span>Documentação v1.0</span>
+      </div>
+
+      <div class="nav-group">
+        <div class="nav-group-title">Início</div>
+        <a href="#intro" class="nav-link active">📖 Introdução</a>
+        <a href="#auth" class="nav-link">🔐 Autenticação</a>
+        <a href="#quickstart" class="nav-link">⚡ Quick Start</a>
+      </div>
+
+      <div class="nav-group">
+        <div class="nav-group-title">Renovação</div>
+        <a href="#ep-renew" class="nav-link"><span class="nav-method method-post">POST</span> /renew</a>
+      </div>
+
+      <div class="nav-group">
+        <div class="nav-group-title">Sigma</div>
+        <a href="#ep-sigma-packages" class="nav-link"><span class="nav-method method-post">POST</span> /sigma/packages</a>
+      </div>
+
+      <div class="nav-group">
+        <div class="nav-group-title">Autenticação</div>
+        <a href="#ep-login" class="nav-link"><span class="nav-method method-post">POST</span> /auth/login</a>
+        <a href="#ep-profile" class="nav-link"><span class="nav-method method-get">GET</span> /auth/profile</a>
+        <a href="#ep-list-keys" class="nav-link"><span class="nav-method method-get">GET</span> /auth/api-keys</a>
+        <a href="#ep-create-key" class="nav-link"><span class="nav-method method-post">POST</span> /auth/api-keys</a>
+        <a href="#ep-revoke-key" class="nav-link"><span class="nav-method method-del">DEL</span> /auth/api-keys/:id</a>
+      </div>
+
+      <div class="nav-group">
+        <div class="nav-group-title">Créditos</div>
+        <a href="#ep-balance" class="nav-link"><span class="nav-method method-get">GET</span> /credits/balance</a>
+        <a href="#ep-add-credits" class="nav-link"><span class="nav-method method-post">POST</span> /credits/add</a>
+        <a href="#ep-transactions" class="nav-link"><span class="nav-method method-get">GET</span> /credits/transactions</a>
+      </div>
+
+      <div class="nav-group">
+        <div class="nav-group-title">Uso & Provedores</div>
+        <a href="#ep-summary" class="nav-link"><span class="nav-method method-get">GET</span> /usage/summary</a>
+        <a href="#ep-history" class="nav-link"><span class="nav-method method-get">GET</span> /usage/history</a>
+        <a href="#ep-pricing" class="nav-link"><span class="nav-method method-get">GET</span> /providers/pricing</a>
+        <a href="#ep-status" class="nav-link"><span class="nav-method method-get">GET</span> /providers/status</a>
+      </div>
+
+      <div class="nav-group">
+        <div class="nav-group-title">Admin</div>
+        <a href="#ep-admin-dash" class="nav-link"><span class="nav-method method-get">GET</span> /admin/dashboard</a>
+        <a href="#ep-admin-users" class="nav-link"><span class="nav-method method-get">GET</span> /admin/users</a>
+        <a href="#ep-admin-create" class="nav-link"><span class="nav-method method-post">POST</span> /admin/users</a>
+        <a href="#ep-admin-toggle" class="nav-link"><span class="nav-method method-put">PUT</span> /users/:id/toggle</a>
+        <a href="#ep-admin-credits" class="nav-link"><span class="nav-method method-post">POST</span> /users/:id/credits</a>
+        <a href="#ep-admin-logs" class="nav-link"><span class="nav-method method-get">GET</span> /admin/renewals</a>
+        <a href="#ep-admin-services" class="nav-link"><span class="nav-method method-get">GET</span> /admin/services</a>
+      </div>
+    </aside>
+
+    <!-- ═══════════ CONTENT ═══════════ -->
+    <main class="content">
+
+      <!-- HERO -->
+      <div class="hero" id="intro">
+        <h1>IPTV Renewal API</h1>
+        <p>API RESTful para renovação automática de clientes em painéis IPTV. Suporta múltiplos provedores com sistema de créditos pré-pago, session keepers e busca por nome.</p>
+        <div class="hero-badges">
+          <span class="hero-badge">🔧 REST JSON</span>
+          <span class="hero-badge">🔑 API Key + JWT</span>
+          <span class="hero-badge">💰 Créditos pré-pago</span>
+          <span class="hero-badge"><span class="val">7</span> provedores</span>
+        </div>
+      </div>
+
+      <!-- BASE URL -->
+      <div class="base-url-block">
+        <label>Base URL</label>
+        <div class="base-url-row">
+          <input type="text" class="base-url-input" id="baseUrl" value="http://SEU_IP:4000/api/v1" spellcheck="false">
+        </div>
+      </div>
+
+      <!-- ═══════════ AUTH SECTION ═══════════ -->
+      <div class="section" id="auth">
+        <div class="section-header">
+          <div class="section-icon" style="background: var(--accent-glow);">🔐</div>
+          <h2>Autenticação</h2>
+        </div>
+        <div class="section-desc">A API usa dois métodos de autenticação dependendo do tipo de operação.</div>
+
+        <div class="alert alert-info">
+          ℹ️ <div><strong>API Key</strong> — Para renovações e consultas via integração externa. Envie no header <code>X-API-Key</code>.</div>
+        </div>
+        <div class="alert alert-info">
+          ℹ️ <div><strong>JWT Token</strong> — Para o dashboard. Obtido via login, envie no header <code>Authorization: Bearer TOKEN</code>.</div>
+        </div>
+
+        <div class="code-block">
+          <div class="code-label">Exemplo com API Key <button class="copy-btn" onclick="copyCode(this)">Copiar</button></div>
+          <pre>curl -X POST <span class="str">"{baseUrl}/renew"</span> \
+  -H <span class="str">"Content-Type: application/json"</span> \
+  -H <span class="str">"X-API-Key: irapi_live_sua_chave_aqui"</span> \
+  -d <span class="str">'{ "provider": "sigma", ... }'</span></pre>
+        </div>
+        <div class="code-block">
+          <div class="code-label">Exemplo com JWT <button class="copy-btn" onclick="copyCode(this)">Copiar</button></div>
+          <pre>curl -X GET <span class="str">"{baseUrl}/auth/profile"</span> \
+  -H <span class="str">"Authorization: Bearer eyJhbGciOiJ..."</span></pre>
+        </div>
+      </div>
+
+      <!-- ═══════════ QUICKSTART ═══════════ -->
+      <div class="section" id="quickstart">
+        <div class="section-header">
+          <div class="section-icon" style="background: var(--green-bg);">⚡</div>
+          <h2>Quick Start</h2>
+        </div>
+        <div class="section-desc">Renove um cliente em 3 passos:</div>
+
+        <div class="alert alert-success">
+          ✅ <div><strong>1.</strong> Faça login e crie uma API Key no dashboard</div>
+        </div>
+        <div class="alert alert-success">
+          ✅ <div><strong>2.</strong> Descubra o <code>sigma_plan_code</code> usando <code>POST /sigma/packages</code></div>
+        </div>
+        <div class="alert alert-success">
+          ✅ <div><strong>3.</strong> Envie a renovação com <code>POST /renew</code></div>
+        </div>
+
+        <div class="code-block">
+          <div class="code-label">Exemplo completo — Renovar por nome <button class="copy-btn" onclick="copyCode(this)">Copiar</button></div>
+          <pre>curl -X POST <span class="str">"{baseUrl}/renew"</span> \
+  -H <span class="str">"Content-Type: application/json"</span> \
+  -H <span class="str">"X-API-Key: irapi_live_sua_chave"</span> \
+  -d <span class="str">'{
+    "provider": "sigma",
+    "client_name": "João Silva",
+    "months": 1,
+    "telas": 1,
+    "credentials": {
+      "username": "meu_user",
+      "password": "minha_senha"
+    },
+    "sigma_domain": "https://painel.exemplo.com",
+    "sigma_plan_code": "XYgD9JWr6V"
+  }'</span></pre>
+        </div>
+      </div>
+
+      <!-- ═══════════ RENEWAL ═══════════ -->
+      <div class="section" id="renewal">
+        <div class="section-header">
+          <div class="section-icon" style="background: var(--blue-bg);">🔄</div>
+          <h2>Renovação</h2>
+        </div>
+        <div class="section-desc">Endpoint principal. Cobra créditos, roteia para o microserviço do provedor, e reembolsa automaticamente em caso de falha.</div>
+
+        <!-- POST /renew -->
+        <div class="endpoint" id="ep-renew">
+          <div class="endpoint-header" onclick="toggleEndpoint(this)">
+            <span class="method-badge badge-POST">POST</span>
+            <span class="endpoint-path">/renew</span>
+            <span class="endpoint-auth auth-apikey">API Key</span>
+            <span class="tag tag-credit">💰 Cobra créditos</span>
+            <span class="endpoint-title">Renovar cliente</span>
+            <span class="endpoint-arrow">▼</span>
+          </div>
+          <div class="endpoint-body">
+            <p>Renova um cliente em qualquer provedor IPTV suportado. Aceita busca por <code>client_name</code> (nome) ou <code>client_id</code> (username). Suporta multi-tela com sufixos.</p>
+
+            <div class="alert alert-warn">
+              ⚠️ <div>Créditos são debitados antes da renovação e <strong>reembolsados automaticamente</strong> se houver falha.</div>
+            </div>
+
+            <table class="params-table">
+              <thead><tr><th>Parâmetro</th><th>Tipo</th><th>Descrição</th></tr></thead>
+              <tbody>
+                <tr><td class="pname">provider <span class="required">*</span></td><td class="ptype">string</td><td class="pdesc">sigma, cloudnation, koffice, uniplay, club, rush, painelfoda</td></tr>
+                <tr><td class="pname">credentials <span class="required">*</span></td><td class="ptype">object</td><td class="pdesc"><code>{ username, password }</code> — Suas credenciais de revendedor no painel</td></tr>
+                <tr><td class="pname">client_name</td><td class="ptype">string</td><td class="pdesc">Nome do cliente (busca no campo note/nome do painel)</td></tr>
+                <tr><td class="pname">client_id</td><td class="ptype">string</td><td class="pdesc">Username do cliente no painel (alternativa ao client_name)</td></tr>
+                <tr><td class="pname">months</td><td class="ptype">int</td><td class="pdesc">Meses para renovar (default: 1). No Sigma, o package_id já define a duração.</td></tr>
+                <tr><td class="pname">telas</td><td class="ptype">int</td><td class="pdesc">Número de telas/conexões (default: 1)</td></tr>
+                <tr><td class="pname">suffix</td><td class="ptype">string</td><td class="pdesc">Sufixos para multi-tela. Ex: <code>"tela 1,tela 2"</code> → busca "João tela 1", "João tela 2"</td></tr>
+                <tr><td class="pname">sigma_domain</td><td class="ptype">string</td><td class="pdesc"><strong>Sigma:</strong> URL do painel. Ex: <code>https://painel.sigma.st</code></td></tr>
+                <tr><td class="pname">sigma_plan_code</td><td class="ptype">string</td><td class="pdesc"><strong>Sigma:</strong> ID do pacote (use <code>/sigma/packages</code> para descobrir)</td></tr>
+                <tr><td class="pname">koffice_domain</td><td class="ptype">string</td><td class="pdesc"><strong>Koffice:</strong> URL do painel</td></tr>
+                <tr><td class="pname">painelfoda_domain</td><td class="ptype">string</td><td class="pdesc"><strong>PainelFoda:</strong> URL do painel</td></tr>
+                <tr><td class="pname">painelfoda_package_id</td><td class="ptype">string</td><td class="pdesc"><strong>PainelFoda:</strong> ID do pacote</td></tr>
+                <tr><td class="pname">rush_type</td><td class="ptype">string</td><td class="pdesc"><strong>Rush:</strong> Tipo de plano</td></tr>
+                <tr><td class="pname">user_email</td><td class="ptype">string</td><td class="pdesc">E-mail do usuário do gestor que disparou a renovação (para rastreamento). Aparece no histórico.</td></tr>
+              </tbody>
+            </table>
+
+            <div class="code-block">
+              <div class="code-label">Exemplo — Sigma por nome <button class="copy-btn" onclick="copyCode(this)">Copiar</button></div>
+              <pre>curl -X POST <span class="str">"{baseUrl}/renew"</span> \
+  -H <span class="str">"Content-Type: application/json"</span> \
+  -H <span class="str">"X-API-Key: irapi_live_..."</span> \
+  -d <span class="str">'{
+    "provider": "sigma",
+    "client_name": "Fernanda Fernandes",
+    "telas": 1,
+    "credentials": { "username": "meuUser", "password": "minhaSenha" },
+    "sigma_domain": "https://starplay.sigma.st",
+    "sigma_plan_code": "ABC123"
+  }'</span></pre>
+            </div>
+
+            <div class="code-block">
+              <div class="code-label">Exemplo — Multi-tela com sufixo <button class="copy-btn" onclick="copyCode(this)">Copiar</button></div>
+              <pre>curl -X POST <span class="str">"{baseUrl}/renew"</span> \
+  -H <span class="str">"Content-Type: application/json"</span> \
+  -H <span class="str">"X-API-Key: irapi_live_..."</span> \
+  -d <span class="str">'{
+    "provider": "sigma",
+    "client_name": "João",
+    "suffix": "tela 1,tela 2,tela 3",
+    "telas": 1,
+    "credentials": { "username": "meuUser", "password": "minhaSenha" },
+    "sigma_domain": "https://starplay.sigma.st",
+    "sigma_plan_code": "XYZ789"
+  }'</span></pre>
+            </div>
+
+            <div class="code-block">
+              <div class="code-label">Resposta — Sucesso</div>
+              <pre>{
+  <span class="key">"success"</span>: <span class="bool">true</span>,
+  <span class="key">"data"</span>: {
+    <span class="key">"provider"</span>: <span class="str">"sigma"</span>,
+    <span class="key">"status"</span>: <span class="str">"success"</span>,
+    <span class="key">"client"</span>: <span class="str">"Fernanda Fernandes"</span>,
+    <span class="key">"telas"</span>: <span class="num">1</span>,
+    <span class="key">"cost"</span>: <span class="num">0.10</span>,
+    <span class="key">"balance"</span>: <span class="num">9.90</span>,
+    <span class="key">"response_time_ms"</span>: <span class="num">3240</span>
+  }
+}</pre>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ═══════════ SIGMA ═══════════ -->
+      <div class="section" id="sigma">
+        <div class="section-header">
+          <div class="section-icon" style="background: var(--accent-glow);">📦</div>
+          <h2>Sigma — Utilitários</h2>
+        </div>
+        <div class="section-desc">Endpoints auxiliares para o provedor Sigma.</div>
+
+        <!-- POST /sigma/packages -->
+        <div class="endpoint" id="ep-sigma-packages">
+          <div class="endpoint-header" onclick="toggleEndpoint(this)">
+            <span class="method-badge badge-POST">POST</span>
+            <span class="endpoint-path">/sigma/packages</span>
+            <span class="endpoint-auth auth-any">JWT / API Key</span>
+            <span class="tag tag-free">Sem créditos</span>
+            <span class="endpoint-title">Listar pacotes</span>
+            <span class="endpoint-arrow">▼</span>
+          </div>
+          <div class="endpoint-body">
+            <p>Lista todos os pacotes disponíveis em um domínio Sigma. Use para descobrir o <code>sigma_plan_code</code> (package ID) necessário para renovação. <strong>Não cobra créditos.</strong></p>
+
+            <table class="params-table">
+              <thead><tr><th>Parâmetro</th><th>Tipo</th><th>Descrição</th></tr></thead>
+              <tbody>
+                <tr><td class="pname">credentials <span class="required">*</span></td><td class="ptype">object</td><td class="pdesc"><code>{ username, password }</code> — Credenciais de revendedor</td></tr>
+                <tr><td class="pname">sigma_domain <span class="required">*</span></td><td class="ptype">string</td><td class="pdesc">URL do painel Sigma. Ex: <code>https://painel.sigma.st</code></td></tr>
+              </tbody>
+            </table>
+
+            <div class="code-block">
+              <div class="code-label">Exemplo <button class="copy-btn" onclick="copyCode(this)">Copiar</button></div>
+              <pre>curl -X POST <span class="str">"{baseUrl}/sigma/packages"</span> \
+  -H <span class="str">"Content-Type: application/json"</span> \
+  -H <span class="str">"X-API-Key: irapi_live_..."</span> \
+  -d <span class="str">'{
+    "credentials": { "username": "meuUser", "password": "minhaSenha" },
+    "sigma_domain": "https://starplay.sigma.st"
+  }'</span></pre>
+            </div>
+            <div class="code-block">
+              <div class="code-label">Resposta</div>
+              <pre>{
+  <span class="key">"success"</span>: <span class="bool">true</span>,
+  <span class="key">"domain"</span>: <span class="str">"https://starplay.sigma.st"</span>,
+  <span class="key">"servers_count"</span>: <span class="num">2</span>,
+  <span class="key">"packages_count"</span>: <span class="num">12</span>,
+  <span class="key">"packages"</span>: [
+    {
+      <span class="key">"id"</span>: <span class="str">"XYgD9JWr6V"</span>,    <span class="comment">← use como sigma_plan_code</span>
+      <span class="key">"name"</span>: <span class="str">"Mensal 1 Tela"</span>,
+      <span class="key">"server_name"</span>: <span class="str">"Servidor Principal"</span>,
+      <span class="key">"duration"</span>: <span class="num">1</span>,
+      <span class="key">"duration_type"</span>: <span class="str">"MONTHS"</span>,
+      <span class="key">"connections"</span>: <span class="num">1</span>,
+      <span class="key">"status"</span>: <span class="str">"ACTIVE"</span>
+    }
+  ]
+}</pre>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ═══════════ AUTH ENDPOINTS ═══════════ -->
+      <div class="section" id="auth-endpoints">
+        <div class="section-header">
+          <div class="section-icon" style="background: var(--purple-bg);">🔑</div>
+          <h2>Autenticação & API Keys</h2>
+        </div>
+
+        <!-- POST /auth/login -->
+        <div class="endpoint" id="ep-login">
+          <div class="endpoint-header" onclick="toggleEndpoint(this)">
+            <span class="method-badge badge-POST">POST</span>
+            <span class="endpoint-path">/auth/login</span>
+            <span class="endpoint-auth auth-public">Público</span>
+            <span class="endpoint-title">Login</span>
+            <span class="endpoint-arrow">▼</span>
+          </div>
+          <div class="endpoint-body">
+            <p>Retorna um JWT token para acesso ao dashboard e endpoints protegidos.</p>
+            <table class="params-table">
+              <thead><tr><th>Parâmetro</th><th>Tipo</th><th>Descrição</th></tr></thead>
+              <tbody>
+                <tr><td class="pname">email <span class="required">*</span></td><td class="ptype">string</td><td class="pdesc">E-mail cadastrado</td></tr>
+                <tr><td class="pname">password <span class="required">*</span></td><td class="ptype">string</td><td class="pdesc">Senha</td></tr>
+              </tbody>
+            </table>
+            <div class="code-block">
+              <div class="code-label">Exemplo <button class="copy-btn" onclick="copyCode(this)">Copiar</button></div>
+              <pre>curl -X POST <span class="str">"{baseUrl}/auth/login"</span> \
+  -H <span class="str">"Content-Type: application/json"</span> \
+  -d <span class="str">'{ "email": "user@email.com", "password": "123456" }'</span></pre>
+            </div>
+            <div class="code-block">
+              <div class="code-label">Resposta</div>
+              <pre>{ <span class="key">"success"</span>: <span class="bool">true</span>, <span class="key">"token"</span>: <span class="str">"eyJhbGciOiJ..."</span> }</pre>
+            </div>
+          </div>
+        </div>
+
+        <!-- GET /auth/profile -->
+        <div class="endpoint" id="ep-profile">
+          <div class="endpoint-header" onclick="toggleEndpoint(this)">
+            <span class="method-badge badge-GET">GET</span>
+            <span class="endpoint-path">/auth/profile</span>
+            <span class="endpoint-auth auth-jwt">JWT</span>
+            <span class="endpoint-title">Perfil + stats</span>
+            <span class="endpoint-arrow">▼</span>
+          </div>
+          <div class="endpoint-body">
+            <p>Retorna dados do usuário, saldo de créditos, estatísticas de uso e contagem de API keys.</p>
+            <div class="code-block">
+              <div class="code-label">Exemplo <button class="copy-btn" onclick="copyCode(this)">Copiar</button></div>
+              <pre>curl -H <span class="str">"Authorization: Bearer TOKEN"</span> <span class="str">"{baseUrl}/auth/profile"</span></pre>
+            </div>
+          </div>
+        </div>
+
+        <!-- GET /auth/api-keys -->
+        <div class="endpoint" id="ep-list-keys">
+          <div class="endpoint-header" onclick="toggleEndpoint(this)">
+            <span class="method-badge badge-GET">GET</span>
+            <span class="endpoint-path">/auth/api-keys</span>
+            <span class="endpoint-auth auth-jwt">JWT</span>
+            <span class="endpoint-title">Listar API Keys</span>
+            <span class="endpoint-arrow">▼</span>
+          </div>
+          <div class="endpoint-body">
+            <p>Lista todas as API Keys do usuário com data de criação e último uso.</p>
+            <div class="code-block">
+              <div class="code-label">Exemplo <button class="copy-btn" onclick="copyCode(this)">Copiar</button></div>
+              <pre>curl -H <span class="str">"Authorization: Bearer TOKEN"</span> <span class="str">"{baseUrl}/auth/api-keys"</span></pre>
+            </div>
+          </div>
+        </div>
+
+        <!-- POST /auth/api-keys -->
+        <div class="endpoint" id="ep-create-key">
+          <div class="endpoint-header" onclick="toggleEndpoint(this)">
+            <span class="method-badge badge-POST">POST</span>
+            <span class="endpoint-path">/auth/api-keys</span>
+            <span class="endpoint-auth auth-jwt">JWT</span>
+            <span class="endpoint-title">Criar API Key</span>
+            <span class="endpoint-arrow">▼</span>
+          </div>
+          <div class="endpoint-body">
+            <p>Gera uma nova API Key. A chave completa só é retornada uma vez — salve com segurança!</p>
+            <table class="params-table">
+              <thead><tr><th>Parâmetro</th><th>Tipo</th><th>Descrição</th></tr></thead>
+              <tbody>
+                <tr><td class="pname">name <span class="required">*</span></td><td class="ptype">string</td><td class="pdesc">Nome da chave (ex: "Gestor Produção")</td></tr>
+              </tbody>
+            </table>
+            <div class="code-block">
+              <div class="code-label">Exemplo <button class="copy-btn" onclick="copyCode(this)">Copiar</button></div>
+              <pre>curl -X POST <span class="str">"{baseUrl}/auth/api-keys"</span> \
+  -H <span class="str">"Authorization: Bearer TOKEN"</span> \
+  -H <span class="str">"Content-Type: application/json"</span> \
+  -d <span class="str">'{ "name": "Meu Gestor" }'</span></pre>
+            </div>
+          </div>
+        </div>
+
+        <!-- DELETE /auth/api-keys/:id -->
+        <div class="endpoint" id="ep-revoke-key">
+          <div class="endpoint-header" onclick="toggleEndpoint(this)">
+            <span class="method-badge badge-DELETE">DEL</span>
+            <span class="endpoint-path">/auth/api-keys/<span class="param">:id</span></span>
+            <span class="endpoint-auth auth-jwt">JWT</span>
+            <span class="endpoint-title">Revogar API Key</span>
+            <span class="endpoint-arrow">▼</span>
+          </div>
+          <div class="endpoint-body">
+            <p>Desativa permanentemente uma API Key. A chave não poderá mais ser usada.</p>
+            <div class="code-block">
+              <div class="code-label">Exemplo <button class="copy-btn" onclick="copyCode(this)">Copiar</button></div>
+              <pre>curl -X DELETE <span class="str">"{baseUrl}/auth/api-keys/5"</span> \
+  -H <span class="str">"Authorization: Bearer TOKEN"</span></pre>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ═══════════ CREDITS ═══════════ -->
+      <div class="section" id="credits">
+        <div class="section-header">
+          <div class="section-icon" style="background: var(--accent-glow);">💰</div>
+          <h2>Créditos</h2>
+        </div>
+        <div class="section-desc">Sistema pré-pago. Cada renovação desconta créditos automaticamente.</div>
+
+        <div class="endpoint" id="ep-balance">
+          <div class="endpoint-header" onclick="toggleEndpoint(this)">
+            <span class="method-badge badge-GET">GET</span>
+            <span class="endpoint-path">/credits/balance</span>
+            <span class="endpoint-auth auth-jwt">JWT</span>
+            <span class="endpoint-title">Consultar saldo</span>
+            <span class="endpoint-arrow">▼</span>
+          </div>
+          <div class="endpoint-body">
+            <div class="code-block">
+              <div class="code-label">Exemplo <button class="copy-btn" onclick="copyCode(this)">Copiar</button></div>
+              <pre>curl -H <span class="str">"Authorization: Bearer TOKEN"</span> <span class="str">"{baseUrl}/credits/balance"</span></pre>
+            </div>
+            <div class="code-block">
+              <div class="code-label">Resposta</div>
+              <pre>{ <span class="key">"success"</span>: <span class="bool">true</span>, <span class="key">"balance"</span>: <span class="num">45.50</span> }</pre>
+            </div>
+          </div>
+        </div>
+
+        <div class="endpoint" id="ep-add-credits">
+          <div class="endpoint-header" onclick="toggleEndpoint(this)">
+            <span class="method-badge badge-POST">POST</span>
+            <span class="endpoint-path">/credits/add</span>
+            <span class="endpoint-auth auth-jwt">JWT</span>
+            <span class="endpoint-title">Adicionar créditos</span>
+            <span class="endpoint-arrow">▼</span>
+          </div>
+          <div class="endpoint-body">
+            <table class="params-table">
+              <thead><tr><th>Parâmetro</th><th>Tipo</th><th>Descrição</th></tr></thead>
+              <tbody>
+                <tr><td class="pname">amount <span class="required">*</span></td><td class="ptype">number</td><td class="pdesc">Valor (mínimo R$ 10.00)</td></tr>
+                <tr><td class="pname">description</td><td class="ptype">string</td><td class="pdesc">Descrição (opcional)</td></tr>
+              </tbody>
+            </table>
+            <div class="code-block">
+              <div class="code-label">Exemplo <button class="copy-btn" onclick="copyCode(this)">Copiar</button></div>
+              <pre>curl -X POST <span class="str">"{baseUrl}/credits/add"</span> \
+  -H <span class="str">"Authorization: Bearer TOKEN"</span> \
+  -H <span class="str">"Content-Type: application/json"</span> \
+  -d <span class="str">'{ "amount": 50 }'</span></pre>
+            </div>
+          </div>
+        </div>
+
+        <div class="endpoint" id="ep-transactions">
+          <div class="endpoint-header" onclick="toggleEndpoint(this)">
+            <span class="method-badge badge-GET">GET</span>
+            <span class="endpoint-path">/credits/transactions</span>
+            <span class="endpoint-auth auth-jwt">JWT</span>
+            <span class="endpoint-title">Histórico de transações</span>
+            <span class="endpoint-arrow">▼</span>
+          </div>
+          <div class="endpoint-body">
+            <p>Retorna histórico de débitos, créditos e reembolsos. Query param: <code>?limit=30</code></p>
+            <div class="code-block">
+              <div class="code-label">Exemplo <button class="copy-btn" onclick="copyCode(this)">Copiar</button></div>
+              <pre>curl -H <span class="str">"Authorization: Bearer TOKEN"</span> <span class="str">"{baseUrl}/credits/transactions?limit=50"</span></pre>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ═══════════ USAGE ═══════════ -->
+      <div class="section" id="usage">
+        <div class="section-header">
+          <div class="section-icon" style="background: var(--green-bg);">📊</div>
+          <h2>Uso & Provedores</h2>
+        </div>
+
+        <div class="endpoint" id="ep-summary">
+          <div class="endpoint-header" onclick="toggleEndpoint(this)">
+            <span class="method-badge badge-GET">GET</span>
+            <span class="endpoint-path">/usage/summary</span>
+            <span class="endpoint-auth auth-jwt">JWT</span>
+            <span class="endpoint-title">Resumo do mês</span>
+            <span class="endpoint-arrow">▼</span>
+          </div>
+          <div class="endpoint-body">
+            <p>Retorna total de renovações, gastos, e breakdown por provedor no mês atual.</p>
+            <div class="code-block">
+              <div class="code-label">Exemplo <button class="copy-btn" onclick="copyCode(this)">Copiar</button></div>
+              <pre>curl -H <span class="str">"Authorization: Bearer TOKEN"</span> <span class="str">"{baseUrl}/usage/summary"</span></pre>
+            </div>
+            <div class="alert alert-info">ℹ️ <div>Também acessível via API Key em <code>GET /usage/api/summary</code></div></div>
+          </div>
+        </div>
+
+        <div class="endpoint" id="ep-history">
+          <div class="endpoint-header" onclick="toggleEndpoint(this)">
+            <span class="method-badge badge-GET">GET</span>
+            <span class="endpoint-path">/usage/history</span>
+            <span class="endpoint-auth auth-jwt">JWT</span>
+            <span class="endpoint-title">Histórico de renovações</span>
+            <span class="endpoint-arrow">▼</span>
+          </div>
+          <div class="endpoint-body">
+            <p>Logs detalhados de cada renovação com status, custo, tempo de resposta. Query: <code>?limit=50&provider=sigma&status=success</code></p>
+            <div class="code-block">
+              <div class="code-label">Exemplo <button class="copy-btn" onclick="copyCode(this)">Copiar</button></div>
+              <pre>curl -H <span class="str">"Authorization: Bearer TOKEN"</span> <span class="str">"{baseUrl}/usage/history?limit=20&provider=sigma"</span></pre>
+            </div>
+            <div class="alert alert-info">ℹ️ <div>Também acessível via API Key em <code>GET /usage/api/history</code></div></div>
+          </div>
+        </div>
+
+        <div class="endpoint" id="ep-pricing">
+          <div class="endpoint-header" onclick="toggleEndpoint(this)">
+            <span class="method-badge badge-GET">GET</span>
+            <span class="endpoint-path">/usage/providers/pricing</span>
+            <span class="endpoint-auth auth-public">Público</span>
+            <span class="endpoint-title">Preços dos provedores</span>
+            <span class="endpoint-arrow">▼</span>
+          </div>
+          <div class="endpoint-body">
+            <p>Lista todos os provedores com preços, modo de cobrança (por tela ou por operação) e features.</p>
+            <div class="code-block">
+              <div class="code-label">Exemplo <button class="copy-btn" onclick="copyCode(this)">Copiar</button></div>
+              <pre>curl <span class="str">"{baseUrl}/usage/providers/pricing"</span></pre>
+            </div>
+          </div>
+        </div>
+
+        <div class="endpoint" id="ep-status">
+          <div class="endpoint-header" onclick="toggleEndpoint(this)">
+            <span class="method-badge badge-GET">GET</span>
+            <span class="endpoint-path">/usage/providers/status</span>
+            <span class="endpoint-auth auth-public">Público</span>
+            <span class="endpoint-title">Status dos serviços</span>
+            <span class="endpoint-arrow">▼</span>
+          </div>
+          <div class="endpoint-body">
+            <p>Health check de todos os microserviços. Retorna online/offline e tempo de resposta.</p>
+            <div class="code-block">
+              <div class="code-label">Exemplo <button class="copy-btn" onclick="copyCode(this)">Copiar</button></div>
+              <pre>curl <span class="str">"{baseUrl}/usage/providers/status"</span></pre>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ═══════════ ADMIN ═══════════ -->
+      <div class="section" id="admin-section">
+        <div class="section-header">
+          <div class="section-icon" style="background: var(--red-bg);">👑</div>
+          <h2>Admin</h2>
+        </div>
+        <div class="section-desc">Endpoints exclusivos para administradores. Requerem JWT de um usuário com <code>is_admin = true</code>.</div>
+
+        <div class="endpoint" id="ep-admin-dash">
+          <div class="endpoint-header" onclick="toggleEndpoint(this)">
+            <span class="method-badge badge-GET">GET</span>
+            <span class="endpoint-path">/admin/dashboard</span>
+            <span class="endpoint-auth auth-jwt">Admin</span>
+            <span class="endpoint-title">Dashboard geral</span>
+            <span class="endpoint-arrow">▼</span>
+          </div>
+          <div class="endpoint-body">
+            <p>Visão geral: total de usuários, renovações, receita, créditos em circulação.</p>
+            <div class="code-block">
+              <div class="code-label">Exemplo <button class="copy-btn" onclick="copyCode(this)">Copiar</button></div>
+              <pre>curl -H <span class="str">"Authorization: Bearer ADMIN_TOKEN"</span> <span class="str">"{baseUrl}/admin/dashboard"</span></pre>
+            </div>
+          </div>
+        </div>
+
+        <div class="endpoint" id="ep-admin-users">
+          <div class="endpoint-header" onclick="toggleEndpoint(this)">
+            <span class="method-badge badge-GET">GET</span>
+            <span class="endpoint-path">/admin/users</span>
+            <span class="endpoint-auth auth-jwt">Admin</span>
+            <span class="endpoint-title">Listar usuários</span>
+            <span class="endpoint-arrow">▼</span>
+          </div>
+          <div class="endpoint-body">
+            <p>Lista todos os usuários com saldo, total de renovações e status.</p>
+            <div class="code-block">
+              <div class="code-label">Exemplo <button class="copy-btn" onclick="copyCode(this)">Copiar</button></div>
+              <pre>curl -H <span class="str">"Authorization: Bearer ADMIN_TOKEN"</span> <span class="str">"{baseUrl}/admin/users"</span></pre>
+            </div>
+          </div>
+        </div>
+
+        <div class="endpoint" id="ep-admin-create">
+          <div class="endpoint-header" onclick="toggleEndpoint(this)">
+            <span class="method-badge badge-POST">POST</span>
+            <span class="endpoint-path">/admin/users</span>
+            <span class="endpoint-auth auth-jwt">Admin</span>
+            <span class="endpoint-title">Criar usuário</span>
+            <span class="endpoint-arrow">▼</span>
+          </div>
+          <div class="endpoint-body">
+            <table class="params-table">
+              <thead><tr><th>Parâmetro</th><th>Tipo</th><th>Descrição</th></tr></thead>
+              <tbody>
+                <tr><td class="pname">name <span class="required">*</span></td><td class="ptype">string</td><td class="pdesc">Nome do usuário</td></tr>
+                <tr><td class="pname">email <span class="required">*</span></td><td class="ptype">string</td><td class="pdesc">E-mail</td></tr>
+                <tr><td class="pname">password <span class="required">*</span></td><td class="ptype">string</td><td class="pdesc">Senha (mín. 6 caracteres)</td></tr>
+              </tbody>
+            </table>
+            <div class="code-block">
+              <div class="code-label">Exemplo <button class="copy-btn" onclick="copyCode(this)">Copiar</button></div>
+              <pre>curl -X POST <span class="str">"{baseUrl}/admin/users"</span> \
+  -H <span class="str">"Authorization: Bearer ADMIN_TOKEN"</span> \
+  -H <span class="str">"Content-Type: application/json"</span> \
+  -d <span class="str">'{ "name": "João", "email": "joao@email.com", "password": "123456" }'</span></pre>
+            </div>
+          </div>
+        </div>
+
+        <div class="endpoint" id="ep-admin-toggle">
+          <div class="endpoint-header" onclick="toggleEndpoint(this)">
+            <span class="method-badge badge-PUT">PUT</span>
+            <span class="endpoint-path">/admin/users/<span class="param">:id</span>/toggle</span>
+            <span class="endpoint-auth auth-jwt">Admin</span>
+            <span class="endpoint-title">Ativar/desativar</span>
+            <span class="endpoint-arrow">▼</span>
+          </div>
+          <div class="endpoint-body">
+            <p>Alterna entre ativo/inativo. Usuário inativo não pode fazer login nem usar API Keys.</p>
+            <div class="code-block">
+              <div class="code-label">Exemplo <button class="copy-btn" onclick="copyCode(this)">Copiar</button></div>
+              <pre>curl -X PUT <span class="str">"{baseUrl}/admin/users/3/toggle"</span> \
+  -H <span class="str">"Authorization: Bearer ADMIN_TOKEN"</span></pre>
+            </div>
+          </div>
+        </div>
+
+        <div class="endpoint" id="ep-admin-credits">
+          <div class="endpoint-header" onclick="toggleEndpoint(this)">
+            <span class="method-badge badge-POST">POST</span>
+            <span class="endpoint-path">/admin/users/<span class="param">:id</span>/credits</span>
+            <span class="endpoint-auth auth-jwt">Admin</span>
+            <span class="endpoint-title">Adicionar créditos</span>
+            <span class="endpoint-arrow">▼</span>
+          </div>
+          <div class="endpoint-body">
+            <table class="params-table">
+              <thead><tr><th>Parâmetro</th><th>Tipo</th><th>Descrição</th></tr></thead>
+              <tbody>
+                <tr><td class="pname">amount <span class="required">*</span></td><td class="ptype">number</td><td class="pdesc">Valor a adicionar</td></tr>
+                <tr><td class="pname">description</td><td class="ptype">string</td><td class="pdesc">Motivo (ex: "Pagamento PIX")</td></tr>
+              </tbody>
+            </table>
+            <div class="code-block">
+              <div class="code-label">Exemplo <button class="copy-btn" onclick="copyCode(this)">Copiar</button></div>
+              <pre>curl -X POST <span class="str">"{baseUrl}/admin/users/3/credits"</span> \
+  -H <span class="str">"Authorization: Bearer ADMIN_TOKEN"</span> \
+  -H <span class="str">"Content-Type: application/json"</span> \
+  -d <span class="str">'{ "amount": 50, "description": "PIX recebido" }'</span></pre>
+            </div>
+          </div>
+        </div>
+
+        <div class="endpoint" id="ep-admin-logs">
+          <div class="endpoint-header" onclick="toggleEndpoint(this)">
+            <span class="method-badge badge-GET">GET</span>
+            <span class="endpoint-path">/admin/renewals</span>
+            <span class="endpoint-auth auth-jwt">Admin</span>
+            <span class="endpoint-title">Logs globais</span>
+            <span class="endpoint-arrow">▼</span>
+          </div>
+          <div class="endpoint-body">
+            <p>Histórico de todas as renovações de todos os usuários. Query: <code>?limit=50&user_id=3&provider=sigma</code></p>
+            <div class="code-block">
+              <div class="code-label">Exemplo <button class="copy-btn" onclick="copyCode(this)">Copiar</button></div>
+              <pre>curl -H <span class="str">"Authorization: Bearer ADMIN_TOKEN"</span> <span class="str">"{baseUrl}/admin/renewals?limit=100"</span></pre>
+            </div>
+          </div>
+        </div>
+
+        <div class="endpoint" id="ep-admin-services">
+          <div class="endpoint-header" onclick="toggleEndpoint(this)">
+            <span class="method-badge badge-GET">GET</span>
+            <span class="endpoint-path">/admin/services</span>
+            <span class="endpoint-auth auth-jwt">Admin</span>
+            <span class="endpoint-title">Status microserviços</span>
+            <span class="endpoint-arrow">▼</span>
+          </div>
+          <div class="endpoint-body">
+            <p>Health check detalhado de todos os microserviços com sessões ativas e features.</p>
+            <div class="code-block">
+              <div class="code-label">Exemplo <button class="copy-btn" onclick="copyCode(this)">Copiar</button></div>
+              <pre>curl -H <span class="str">"Authorization: Bearer ADMIN_TOKEN"</span> <span class="str">"{baseUrl}/admin/services"</span></pre>
+            </div>
+            <div class="alert alert-info">ℹ️ <div>Outros endpoints: <code>GET /admin/services/sessions</code>, <code>DELETE /admin/services/sessions</code>, <code>GET /admin/services/:provider/sessions</code>, <code>DELETE /admin/services/:provider/sessions</code></div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ═══════════ PROVIDERS TABLE ═══════════ -->
+      <div class="section" id="providers-ref">
+        <div class="section-header">
+          <div class="section-icon" style="background: var(--green-bg);">🌐</div>
+          <h2>Provedores Suportados</h2>
+        </div>
+
+        <table class="params-table" style="margin-bottom: 0;">
+          <thead><tr><th>Provider</th><th>Campos Obrigatórios</th><th>Features</th></tr></thead>
+          <tbody>
+            <tr><td class="pname" style="color: #f59e0b;">sigma</td><td class="pdesc"><code>sigma_domain</code>, <code>sigma_plan_code</code></td><td class="pdesc">Busca por nome, multi-tela, session keeper, Cloudflare Worker</td></tr>
+            <tr><td class="pname" style="color: #3b82f6;">cloudnation</td><td class="pdesc">—</td><td class="pdesc">Turnstile bypass, session keeper, busca por nome</td></tr>
+            <tr><td class="pname" style="color: #f97316;">koffice</td><td class="pdesc"><code>koffice_domain</code></td><td class="pdesc">Session keeper, proxy residencial</td></tr>
+            <tr><td class="pname" style="color: #2563eb;">uniplay</td><td class="pdesc">—</td><td class="pdesc">Proxy SOCKS5</td></tr>
+            <tr><td class="pname" style="color: #ec4899;">club</td><td class="pdesc">—</td><td class="pdesc">hCaptcha solve</td></tr>
+            <tr><td class="pname" style="color: #10b981;">rush</td><td class="pdesc"><code>rush_type</code></td><td class="pdesc">API REST pura, session keeper</td></tr>
+            <tr><td class="pname" style="color: #ef4444;">painelfoda</td><td class="pdesc"><code>painelfoda_domain</code>, <code>painelfoda_package_id</code></td><td class="pdesc">CSRF/cookies</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- ═══════════ ERROR CODES ═══════════ -->
+      <div class="section" id="errors">
+        <div class="section-header">
+          <div class="section-icon" style="background: var(--red-bg);">⚠️</div>
+          <h2>Códigos de Erro</h2>
+        </div>
+        <table class="params-table">
+          <thead><tr><th>Status</th><th>Significado</th></tr></thead>
+          <tbody>
+            <tr><td class="pname">401</td><td class="pdesc">API Key inválida ou JWT expirado</td></tr>
+            <tr><td class="pname">402</td><td class="pdesc">Créditos insuficientes</td></tr>
+            <tr><td class="pname">403</td><td class="pdesc">Conta desativada ou acesso negado</td></tr>
+            <tr><td class="pname">422</td><td class="pdesc">Renovação falhou (créditos reembolsados)</td></tr>
+            <tr><td class="pname">429</td><td class="pdesc">Rate limit excedido</td></tr>
+            <tr><td class="pname">503</td><td class="pdesc">Microserviço offline (créditos reembolsados)</td></tr>
+          </tbody>
+        </table>
+        <div class="code-block">
+          <div class="code-label">Exemplo de erro</div>
+          <pre>{
+  <span class="key">"success"</span>: <span class="bool">false</span>,
+  <span class="key">"error"</span>: <span class="str">"Renovação falhou. Créditos reembolsados."</span>,
+  <span class="key">"details"</span>: {
+    <span class="key">"provider"</span>: <span class="str">"sigma"</span>,
+    <span class="key">"refunded"</span>: <span class="num">0.10</span>,
+    <span class="key">"balance"</span>: <span class="num">10.00</span>,
+    <span class="key">"error_details"</span>: <span class="str">"Cliente não encontrado"</span>
+  }
+}</pre>
+        </div>
+      </div>
+
+    </main>
+  </div>
+
+  <script>
+    // ── Toggle endpoint cards ──
+    function toggleEndpoint(header) {
+      const card = header.closest('.endpoint');
+      card.classList.toggle('open');
+    }
+
+    // ── Copy code (HTTP safe) ──
+    function copyCode(btn) {
+      const pre = btn.closest('.code-block').querySelector('pre');
+      let text = pre.textContent || pre.innerText;
+
+      // Replace {baseUrl} with actual value
+      const baseUrl = document.getElementById('baseUrl').value;
+      text = text.replace(/\{baseUrl\}/g, baseUrl);
+
+      if (navigator.clipboard && window.isSecureContext) {
+        navigator.clipboard.writeText(text);
+      } else {
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        ta.style.position = 'fixed';
+        ta.style.left = '-9999px';
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand('copy');
+        document.body.removeChild(ta);
+      }
+
+      btn.textContent = '✓ Copiado';
+      btn.classList.add('copied');
+      setTimeout(() => {
+        btn.textContent = 'Copiar';
+        btn.classList.remove('copied');
+      }, 2000);
+    }
+
+    // ── Active nav link on scroll ──
+    const sections = document.querySelectorAll('.endpoint[id], .section[id], [id="intro"], [id="auth"], [id="quickstart"]');
+    const navLinks = document.querySelectorAll('.nav-link');
+
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          const id = entry.target.id;
+          navLinks.forEach(l => l.classList.remove('active'));
+          const active = document.querySelector(`.nav-link[href="#${id}"]`);
+          if (active) active.classList.add('active');
+        }
+      });
+    }, { rootMargin: '-20% 0px -60% 0px' });
+
+    sections.forEach(s => observer.observe(s));
+
+    // ── Replace {baseUrl} in displayed code on base URL change ──
+    document.getElementById('baseUrl').addEventListener('input', function() {
+      // Just let copy handle it dynamically
+    });
+  </script>
+</body>
+</html>
