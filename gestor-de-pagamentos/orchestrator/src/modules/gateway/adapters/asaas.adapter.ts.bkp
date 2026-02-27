@@ -1,0 +1,108 @@
+import axios, { AxiosInstance } from 'axios';
+import { GatewayType, PaymentStatus } from '@prisma/client';
+import {
+  IGatewayAdapter, CreatePaymentInput, CreatePaymentOutput,
+  PaymentStatusOutput, RefundInput, RefundOutput, WebhookPayload,
+} from '../../../common/interfaces/gateway.interface';
+import { GatewayError } from '../../../common/errors';
+
+const STATUS_MAP: Record<string, PaymentStatus> = {
+  PENDING: 'PENDING', RECEIVED: 'APPROVED', CONFIRMED: 'APPROVED',
+  OVERDUE: 'EXPIRED', REFUNDED: 'REFUNDED', RECEIVED_IN_CASH: 'APPROVED',
+  REFUND_REQUESTED: 'PROCESSING', AWAITING_RISK_ANALYSIS: 'PROCESSING',
+};
+
+function mapStatus(s: string): PaymentStatus {
+  return STATUS_MAP[s] || 'ERROR';
+}
+
+export class AsaasAdapter implements IGatewayAdapter {
+  readonly name = GatewayType.ASAAS;
+
+  private client(creds: Record<string, string>): AxiosInstance {
+    const baseURL = creds.sandbox === 'true' ? 'https://sandbox.asaas.com/api/v3' : 'https://api.asaas.com/v3';
+    return axios.create({ baseURL, headers: { access_token: creds.apiKey, 'Content-Type': 'application/json' }, timeout: 30000 });
+  }
+
+  private async ensureCustomer(api: AxiosInstance, input: CreatePaymentInput): Promise<string> {
+    const doc = input.payer?.document?.replace(/\D/g, '') || '54994113017';
+    if (doc) {
+      try {
+        const { data } = await api.get(`/customers?cpfCnpj=${doc}`);
+        if (data.data?.length > 0) return data.data[0].id;
+      } catch { /* create new */ }
+    }
+    const { data } = await api.post('/customers', {
+      name: input.payer?.name || 'Cliente',
+      email: input.payer?.email,
+      cpfCnpj: doc,
+      phone: input.payer?.phone,
+    });
+    return data.id;
+  }
+
+  async createPayment(input: CreatePaymentInput, creds: Record<string, string>): Promise<CreatePaymentOutput> {
+    const api = this.client(creds);
+    try {
+      const customerId = await this.ensureCustomer(api, input);
+      const billingMap: Record<string, string> = { PIX: 'PIX', CREDIT_CARD: 'CREDIT_CARD', BOLETO: 'BOLETO' };
+
+      const payload: any = {
+        customer: customerId,
+        billingType: billingMap[input.method] || 'PIX',
+        value: input.amount / 100,
+        description: input.description || 'Pagamento',
+        externalReference: input.externalId,
+      };
+
+      if (input.method === 'PIX') payload.dueDate = new Date().toISOString().split('T')[0];
+      if (input.method === 'CREDIT_CARD' && input.card) {
+        payload.creditCardToken = input.card.token;
+        payload.installmentCount = input.card.installments || 1;
+      }
+
+      const { data } = await api.post('/payments', payload);
+
+      let pixData: any = {};
+      if (input.method === 'PIX' && data.id) {
+        try {
+          const { data: pix } = await api.get(`/payments/${data.id}/pixQrCode`);
+          pixData = { pixQrCode: pix.encodedImage, pixCopiaECola: pix.payload, pixExpiration: pix.expirationDate ? new Date(pix.expirationDate) : undefined };
+        } catch { /* pix not ready */ }
+      }
+
+      return { gatewayPaymentId: data.id, status: mapStatus(data.status), ...pixData, boletoUrl: data.bankSlipUrl, raw: data };
+    } catch (error: any) {
+      throw new GatewayError('ASAAS', error.response?.data?.errors?.[0]?.description || error.message, error.response?.data);
+    }
+  }
+
+  async getPaymentStatus(id: string, creds: Record<string, string>): Promise<PaymentStatusOutput> {
+    try {
+      const { data } = await this.client(creds).get(`/payments/${id}`);
+      return { gatewayPaymentId: data.id, status: mapStatus(data.status), paidAt: data.confirmedDate ? new Date(data.confirmedDate) : undefined, raw: data };
+    } catch (error: any) {
+      throw new GatewayError('ASAAS', error.message, error.response?.data);
+    }
+  }
+
+  async parseWebhook(_headers: Record<string, string>, body: unknown): Promise<WebhookPayload | null> {
+    const p = body as any;
+    if (p?.event?.startsWith('PAYMENT_')) {
+      return { gatewayPaymentId: p.payment?.id, status: mapStatus(p.payment?.status || ''), paidAt: p.payment?.confirmedDate ? new Date(p.payment.confirmedDate) : undefined, raw: p };
+    }
+    return null;
+  }
+
+  verifyWebhookSignature(): boolean { return true; }
+
+  async refund(input: RefundInput, creds: Record<string, string>): Promise<RefundOutput> {
+    try {
+      const body = input.amount ? { value: input.amount / 100 } : {};
+      const { data } = await this.client(creds).post(`/payments/${input.gatewayPaymentId}/refund`, body);
+      return { refundId: data.id || input.gatewayPaymentId, status: data.status, raw: data };
+    } catch (error: any) {
+      throw new GatewayError('ASAAS', error.message, error.response?.data);
+    }
+  }
+}

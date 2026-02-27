@@ -1,0 +1,73 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: orchestrator-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: payment_orchestrator
+      POSTGRES_USER: orchestrator
+      POSTGRES_PASSWORD: orchestrator_secret
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U orchestrator -d payment_orchestrator"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: orchestrator-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.api
+    container_name: orchestrator-api
+    restart: unless-stopped
+    ports:
+      - "3500:3500"
+    environment:
+      NODE_ENV: development
+      PORT: 3500
+      HOST: 0.0.0.0
+      DATABASE_URL: postgresql://orchestrator:orchestrator_secret@postgres:5432/payment_orchestrator
+      REDIS_URL: redis://redis:6379
+      JWT_SECRET: ${JWT_SECRET:-troque-esta-chave-em-producao-123}
+      JWT_EXPIRES_IN: 7d
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY:-12345678901234567890123456789012}
+      WEBHOOK_BASE_URL: https://supergateway.pro/api/v1
+      LOG_LEVEL: info
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  dashboard:
+    build:
+      context: ./dashboard
+      dockerfile: Dockerfile
+    container_name: orchestrator-dashboard
+    restart: unless-stopped
+    ports:
+      - "5173:5173"
+    depends_on:
+      - api
+
+volumes:
+  postgres_data:
+  redis_data:

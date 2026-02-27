@@ -1,0 +1,286 @@
+// =============================================
+// Payment Orchestrator v2 - 3-Level Hierarchy
+// SUPER_ADMIN → ADMIN → USER
+// =============================================
+
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "linux-musl"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ── Account (tabela única pra todos os níveis) ───
+model Account {
+  id       String      @id @default(cuid())
+  email    String      @unique
+  password String      // bcrypt hash
+  name     String
+  role     AccountRole
+
+  // Hierarquia: Admin → parentId aponta pro SuperAdmin
+  //             User  → parentId aponta pro Admin
+  parentId String?
+  parent   Account?  @relation("Hierarchy", fields: [parentId], references: [id])
+  children Account[] @relation("Hierarchy")
+
+  // Segurança
+  mustChangePassword Boolean @default(true)
+  isActive           Boolean @default(true)
+
+  // Webhook de saída — URL onde notificar quando pagamento muda de status
+  webhookCallbackUrl    String?
+  webhookCallbackSecret String? // Secret pra assinar os webhooks de saída
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relações (só USER usa essas)
+  gatewayConfigs  GatewayConfig[]
+  gatewayRoutings GatewayRouting[]
+  apiKeys         ApiKey[]
+  payments       Payment[]
+  feeRules       FeeRule[]
+  webhookLogs    WebhookLog[]
+
+  @@index([parentId])
+  @@index([role])
+  @@map("accounts")
+}
+
+enum AccountRole {
+  SUPER_ADMIN
+  ADMIN
+  USER
+}
+
+// ── API Key (gerada pelo USER, usada no GestãoPro) ─
+model ApiKey {
+  id       String  @id @default(cuid())
+  userId   String
+  key      String  @unique // a chave em si (hash)
+  keyPlain String  // chave visível pro usuário (encriptada AES)
+  label    String  @default("default")
+  isActive Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user Account @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("api_keys")
+}
+
+// ── Configuração de Gateway (por USER) ───────────
+model GatewayConfig {
+  id       String      @id @default(cuid())
+  userId   String
+  gateway  GatewayType
+  isActive Boolean     @default(true)
+  isPrimary Boolean    @default(false)
+
+  // Credenciais encriptadas (AES-256-GCM)
+  credentials String // JSON encriptado
+  config      String? // config extra encriptado
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user     Account          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  payments Payment[]
+  routings GatewayRouting[]
+
+  @@unique([userId, gateway])
+  @@map("gateway_configs")
+}
+
+enum GatewayType {
+  MERCADO_PAGO
+  ASAAS
+  STRIPE
+  PICPAY
+}
+
+// ── Pagamento ────────────────────────────────────
+model Payment {
+  id     String @id @default(cuid())
+  userId String // USER que criou
+  gatewayConfigId String
+
+  // Identificação
+  externalId       String?
+  gatewayPaymentId String?
+  idempotencyKey   String? @unique
+
+  // Valores (centavos)
+  amount         Int
+  originalAmount Int?
+  feeAmount      Int     @default(0)
+  currency       String  @default("BRL")
+
+  // Status normalizado
+  status  PaymentStatus @default(PENDING)
+  method  PaymentMethod
+  gateway GatewayType
+
+  // Pagador
+  payerName  String?
+  payerEmail String?
+  payerDoc   String?
+  payerPhone String?
+
+  // PIX
+  pixQrCode     String? @db.Text
+  pixCopiaECola String? @db.Text
+  pixExpiration DateTime?
+
+  // Cartão
+  cardBrand    String?
+  cardLastFour String?
+  installments Int?    @default(1)
+
+  // Boleto
+  boletoUrl        String?
+  boletoBarcode    String?
+  boletoExpiration DateTime?
+
+  // Meta
+  description String?
+  metadata    Json?
+  gatewayRaw  Json?
+
+  // Timestamps
+  paidAt      DateTime?
+  cancelledAt DateTime?
+  refundedAt  DateTime?
+  expiresAt   DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  user          Account        @relation(fields: [userId], references: [id])
+  gatewayConfig GatewayConfig  @relation(fields: [gatewayConfigId], references: [id])
+  statusHistory PaymentStatusHistory[]
+  webhookLogs   WebhookLog[]
+
+  @@index([userId, status])
+  @@index([userId, createdAt])
+  @@index([gatewayPaymentId])
+  @@index([externalId, userId])
+  @@map("payments")
+}
+
+enum PaymentStatus {
+  PENDING
+  PROCESSING
+  APPROVED
+  REJECTED
+  CANCELLED
+  REFUNDED
+  EXPIRED
+  ERROR
+}
+
+enum PaymentMethod {
+  PIX
+  CREDIT_CARD
+  DEBIT_CARD
+  BOLETO
+}
+
+// ── Histórico de Status ──────────────────────────
+model PaymentStatusHistory {
+  id        String         @id @default(cuid())
+  paymentId String
+  from      PaymentStatus?
+  to        PaymentStatus
+  reason    String?
+  raw       Json?
+  createdAt DateTime       @default(now())
+
+  payment Payment @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+
+  @@index([paymentId, createdAt])
+  @@map("payment_status_history")
+}
+
+// ── Webhook Logs ─────────────────────────────────
+model WebhookLog {
+  id        String           @id @default(cuid())
+  userId    String?
+  paymentId String?
+  gateway   GatewayType
+  direction WebhookDirection
+
+  url        String?
+  method     String    @default("POST")
+  headers    Json?
+  body       Json?
+  statusCode Int?
+  response   Json?
+
+  attempts    Int      @default(1)
+  success     Boolean  @default(false)
+  error       String?
+  processedAt DateTime?
+  createdAt   DateTime @default(now())
+
+  user    Account? @relation(fields: [userId], references: [id])
+  payment Payment? @relation(fields: [paymentId], references: [id])
+
+  @@index([userId, createdAt])
+  @@index([paymentId])
+  @@map("webhook_logs")
+}
+
+enum WebhookDirection {
+  INBOUND
+  OUTBOUND
+}
+
+// ── Regras de Taxa (por USER) ────────────────────
+model FeeRule {
+  id       String @id @default(cuid())
+  userId   String
+
+  method   PaymentMethod
+  feeType  FeeType       @default(PERCENTAGE)
+  feeValue Float
+  isActive Boolean       @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user Account @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, method])
+  @@map("fee_rules")
+}
+
+enum FeeType {
+  PERCENTAGE
+  FIXED
+}
+
+// ── Roteamento de Gateway por Método ─────────────
+// Permite o user definir qual gateway usa pra cada método
+// Ex: PIX → Mercado Pago, CREDIT_CARD → Asaas
+model GatewayRouting {
+  id              String        @id @default(cuid())
+  userId          String
+  method          PaymentMethod
+  gatewayConfigId String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user          Account       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  gatewayConfig GatewayConfig @relation(fields: [gatewayConfigId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, method])
+  @@map("gateway_routings")
+}

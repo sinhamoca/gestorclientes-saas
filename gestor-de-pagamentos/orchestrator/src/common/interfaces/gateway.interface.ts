@@ -1,0 +1,81 @@
+import { GatewayType, PaymentMethod, PaymentStatus } from '@prisma/client';
+
+export interface CreatePaymentInput {
+  amount: number;
+  method: PaymentMethod;
+  description?: string;
+  externalId?: string;
+  idempotencyKey?: string;
+  payer?: {
+    name?: string;
+    email?: string;
+    document?: string;
+    phone?: string;
+  };
+  pix?: { expirationMinutes?: number };
+  card?: {
+    token: string;
+    installments?: number;
+    holderName?: string;
+    holderDocument?: string;
+  };
+  boleto?: { expirationDays?: number };
+  // ── Checkout redirect (Checkout Pro / Payment Link) ──
+  checkout?: {
+    backUrl?: string;
+    excludedPaymentTypes?: string[];  // ex: ["ticket", "atm"]
+    excludedPaymentMethods?: string[]; // ex: ["bolbradesco"]
+  };
+  metadata?: Record<string, unknown>;
+  notificationUrl?: string;
+}
+
+export interface CreatePaymentOutput {
+  gatewayPaymentId: string;
+  status: PaymentStatus;
+  pixQrCode?: string;
+  pixCopiaECola?: string;
+  pixExpiration?: Date;
+  cardBrand?: string;
+  cardLastFour?: string;
+  boletoUrl?: string;
+  boletoBarcode?: string;
+  boletoExpiration?: Date;
+  // ── Checkout URL (redirect) ──
+  checkoutUrl?: string;
+  raw: unknown;
+}
+
+export interface PaymentStatusOutput {
+  gatewayPaymentId: string;
+  status: PaymentStatus;
+  paidAt?: Date;
+  raw: unknown;
+}
+
+export interface RefundInput {
+  gatewayPaymentId: string;
+  amount?: number;
+}
+
+export interface RefundOutput {
+  refundId: string;
+  status: string;
+  raw: unknown;
+}
+
+export interface WebhookPayload {
+  gatewayPaymentId: string;
+  status: PaymentStatus;
+  paidAt?: Date;
+  raw: unknown;
+}
+
+export interface IGatewayAdapter {
+  readonly name: GatewayType;
+  createPayment(input: CreatePaymentInput, credentials: Record<string, string>): Promise<CreatePaymentOutput>;
+  getPaymentStatus(gatewayPaymentId: string, credentials: Record<string, string>): Promise<PaymentStatusOutput>;
+  parseWebhook(headers: Record<string, string>, body: unknown): Promise<WebhookPayload | null>;
+  verifyWebhookSignature(headers: Record<string, string>, body: unknown, secret?: string): boolean;
+  refund(input: RefundInput, credentials: Record<string, string>): Promise<RefundOutput>;
+}

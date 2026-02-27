@@ -1,0 +1,356 @@
+import { GatewayType, PaymentMethod, PaymentStatus, Prisma } from '@prisma/client';
+import { prisma } from '../../database/prisma';
+import { redis } from '../../database/redis';
+import { getGatewayAdapter } from '../gateway/gateway.factory';
+import { gatewayConfigService } from '../gateway/gateway-config.service';
+import { decryptJson } from '../../common/utils/encryption';
+import { AppError, DuplicateError, NotFoundError } from '../../common/errors';
+import { CreatePaymentInput } from '../../common/interfaces/gateway.interface';
+import { env } from '../../config/env';
+
+export class PaymentService {
+
+  async create(userId: string, input: {
+    gateway?: GatewayType;
+    method: PaymentMethod;
+    amount: number;
+    description?: string;
+    externalId?: string;
+    idempotencyKey?: string;
+    payer?: { name?: string; email?: string; document?: string; phone?: string };
+    pix?: { expirationMinutes?: number };
+    card?: { token: string; installments?: number; holderName?: string; holderDocument?: string };
+    boleto?: { expirationDays?: number };
+    checkout?: { backUrl?: string; excludedPaymentTypes?: string[]; excludedPaymentMethods?: string[] };
+    metadata?: Record<string, unknown>;
+  }) {
+    // Idempotência
+    if (input.idempotencyKey) {
+      const existing = await prisma.payment.findUnique({ where: { idempotencyKey: input.idempotencyKey } });
+      if (existing) throw new DuplicateError(`Pagamento com idempotency key "${input.idempotencyKey}" já existe`);
+    }
+
+    // Resolver gateway (roteamento por método → primário → erro)
+    const gwConfig = await gatewayConfigService.resolveGatewayForMethod(userId, input.method, input.gateway);
+
+    // Calcular taxas
+    const { finalAmount, feeAmount } = await this.calculateFees(userId, input.method, input.amount);
+
+    // Decriptar credenciais
+    const creds = decryptJson<Record<string, string>>(gwConfig.credentials);
+
+    // Webhook URL
+    const webhookUrl = env.WEBHOOK_BASE_URL
+      ? `${env.WEBHOOK_BASE_URL}/webhooks/${gwConfig.gateway.toLowerCase().replace('_', '-')}/${userId}`
+      : undefined;
+
+    // Chamar gateway
+    const adapter = getGatewayAdapter(gwConfig.gateway);
+    const result = await adapter.createPayment({
+      amount: finalAmount,
+      method: input.method,
+      description: input.description,
+      externalId: input.externalId,
+      idempotencyKey: input.idempotencyKey,
+      payer: input.payer,
+      pix: input.pix,
+      card: input.card,
+      boleto: input.boleto,
+      checkout: input.checkout,
+      metadata: input.metadata,
+      notificationUrl: webhookUrl,
+    }, creds);
+
+    // Persistir
+    const payment = await prisma.payment.create({
+      data: {
+        userId,
+        gatewayConfigId: gwConfig.id,
+        externalId: input.externalId,
+        gatewayPaymentId: result.gatewayPaymentId,
+        idempotencyKey: input.idempotencyKey,
+        amount: finalAmount,
+        originalAmount: input.amount,
+        feeAmount,
+        status: result.status,
+        method: input.method,
+        gateway: gwConfig.gateway,
+        payerName: input.payer?.name,
+        payerEmail: input.payer?.email,
+        payerDoc: input.payer?.document,
+        payerPhone: input.payer?.phone,
+        pixQrCode: result.pixQrCode,
+        pixCopiaECola: result.pixCopiaECola,
+        pixExpiration: result.pixExpiration,
+        cardBrand: result.cardBrand,
+        cardLastFour: result.cardLastFour,
+        installments: input.card?.installments,
+        boletoUrl: result.boletoUrl,
+        boletoBarcode: result.boletoBarcode,
+        boletoExpiration: result.boletoExpiration,
+        description: input.description,
+        metadata: input.metadata as Prisma.InputJsonValue,
+        gatewayRaw: result.raw as Prisma.InputJsonValue,
+        paidAt: result.status === 'APPROVED' ? new Date() : undefined,
+      },
+    });
+
+    await prisma.paymentStatusHistory.create({
+      data: { paymentId: payment.id, from: null, to: payment.status, reason: 'Pagamento criado' },
+    });
+
+    await redis.setex(`payment:${payment.id}`, 300, JSON.stringify(payment));
+
+    // Retornar dados formatados + checkoutUrl se houver
+    const formatted = this.format(payment);
+    if (result.checkoutUrl) {
+      (formatted as any).checkoutUrl = result.checkoutUrl;
+    }
+    return formatted;
+  }
+
+  async getById(userId: string, paymentId: string) {
+    const cached = await redis.get(`payment:${paymentId}`);
+    if (cached) {
+      const p = JSON.parse(cached);
+      if (p.userId === userId) return this.format(p);
+    }
+
+    const payment = await prisma.payment.findFirst({ where: { id: paymentId, userId } });
+    if (!payment) throw new NotFoundError('Pagamento');
+
+    await redis.setex(`payment:${payment.id}`, 300, JSON.stringify(payment));
+    return this.format(payment);
+  }
+
+  async list(userId: string, query: {
+    page?: number; limit?: number; status?: PaymentStatus; method?: PaymentMethod;
+    gateway?: GatewayType; from?: string; to?: string; externalId?: string; search?: string;
+  }) {
+    const page = query.page || 1;
+    const limit = Math.min(query.limit || 20, 100);
+    const skip = (page - 1) * limit;
+
+    const where: Prisma.PaymentWhereInput = {
+      userId,
+      ...(query.status && { status: query.status }),
+      ...(query.method && { method: query.method }),
+      ...(query.gateway && { gateway: query.gateway }),
+      ...(query.externalId && { externalId: query.externalId }),
+      ...((query.from || query.to) && {
+        createdAt: {
+          ...(query.from && { gte: new Date(query.from) }),
+          ...(query.to && { lte: new Date(query.to) }),
+        },
+      }),
+      ...(query.search && {
+        OR: [
+          { payerName: { contains: query.search, mode: 'insensitive' } },
+          { payerEmail: { contains: query.search, mode: 'insensitive' } },
+          { payerDoc: { contains: query.search } },
+          { externalId: { contains: query.search } },
+          { gatewayPaymentId: { contains: query.search } },
+        ],
+      }),
+    };
+
+    const [payments, total] = await prisma.$transaction([
+      prisma.payment.findMany({ where, orderBy: { createdAt: 'desc' }, skip, take: limit }),
+      prisma.payment.count({ where }),
+    ]);
+
+    return {
+      data: payments.map((p) => this.format(p)),
+      pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
+    };
+  }
+
+  async syncStatus(userId: string, paymentId: string) {
+    const payment = await prisma.payment.findFirst({
+      where: { id: paymentId, userId },
+      include: { gatewayConfig: true },
+    });
+    if (!payment) throw new NotFoundError('Pagamento');
+    if (!payment.gatewayPaymentId) throw new AppError('Pagamento sem referência no gateway');
+
+    const creds = decryptJson<Record<string, string>>(payment.gatewayConfig.credentials);
+    const adapter = getGatewayAdapter(payment.gateway);
+    const result = await adapter.getPaymentStatus(payment.gatewayPaymentId, creds);
+
+    if (result.status !== payment.status) {
+      await this.updateStatus(payment.id, result.status, result.paidAt, result.raw);
+    }
+
+    return this.getById(userId, paymentId);
+  }
+
+  async refund(userId: string, paymentId: string, amount?: number) {
+    const payment = await prisma.payment.findFirst({
+      where: { id: paymentId, userId },
+      include: { gatewayConfig: true },
+    });
+    if (!payment) throw new NotFoundError('Pagamento');
+    if (payment.status !== 'APPROVED') throw new AppError('Só pagamentos aprovados podem ser reembolsados');
+    if (!payment.gatewayPaymentId) throw new AppError('Pagamento sem referência no gateway');
+
+    const creds = decryptJson<Record<string, string>>(payment.gatewayConfig.credentials);
+    const adapter = getGatewayAdapter(payment.gateway);
+    const result = await adapter.refund({ gatewayPaymentId: payment.gatewayPaymentId, amount }, creds);
+
+    await this.updateStatus(payment.id, 'REFUNDED', undefined, result.raw);
+    return { refundId: result.refundId, status: result.status };
+  }
+
+  async getStats(userId: string, from?: string, to?: string) {
+    const dateFilter = {
+      ...(from && { gte: new Date(from) }),
+      ...(to && { lte: new Date(to) }),
+    };
+    const hasDate = Object.keys(dateFilter).length > 0;
+
+    // Excluir EXPIRED de tudo — são pagamentos abandonados, não contam nas métricas
+    const activeWhere = {
+      userId,
+      status: { notIn: ['EXPIRED' as const] },
+      ...(hasDate && { createdAt: dateFilter }),
+    };
+
+    const [total, approved, pending, revenue, byMethod, byGateway] = await prisma.$transaction([
+      prisma.payment.count({ where: activeWhere }),
+      prisma.payment.count({ where: { ...activeWhere, status: 'APPROVED' } }),
+      prisma.payment.count({ where: { ...activeWhere, status: 'PENDING' } }),
+      prisma.payment.aggregate({ where: { ...activeWhere, status: 'APPROVED' }, _sum: { amount: true } }),
+      prisma.payment.groupBy({ by: ['method'], where: activeWhere, _count: true, _sum: { amount: true } }),
+      prisma.payment.groupBy({ by: ['gateway'], where: activeWhere, _count: true, _sum: { amount: true } }),
+    ]);
+
+    return {
+      total, approved, pending, rejected: total - approved - pending,
+      revenue: revenue._sum.amount || 0,
+      revenueFormatted: `R$ ${((revenue._sum.amount || 0) / 100).toFixed(2).replace('.', ',')}`,
+      byMethod: byMethod.map((m) => ({ method: m.method, count: m._count, total: m._sum.amount || 0 })),
+      byGateway: byGateway.map((g) => ({ gateway: g.gateway, count: g._count, total: g._sum.amount || 0 })),
+    };
+  }
+
+  // ── Internal ───────────────────────────────────
+
+  async updateStatus(paymentId: string, newStatus: PaymentStatus, paidAt?: Date, raw?: unknown) {
+    const current = await prisma.payment.findUnique({ where: { id: paymentId } });
+    if (!current || current.status === newStatus) return;
+
+    await prisma.$transaction([
+      prisma.payment.update({
+        where: { id: paymentId },
+        data: {
+          status: newStatus,
+          ...(paidAt && { paidAt }),
+          ...(newStatus === 'CANCELLED' && { cancelledAt: new Date() }),
+          ...(newStatus === 'REFUNDED' && { refundedAt: new Date() }),
+        },
+      }),
+      prisma.paymentStatusHistory.create({
+        data: { paymentId, from: current.status, to: newStatus, raw: raw as Prisma.InputJsonValue },
+      }),
+    ]);
+
+    await redis.del(`payment:${paymentId}`);
+
+    this.sendOutboundWebhook(current.userId, paymentId, current.status, newStatus).catch(() => {});
+  }
+
+  private async sendOutboundWebhook(userId: string, paymentId: string, fromStatus: PaymentStatus, toStatus: PaymentStatus) {
+    const account = await prisma.account.findUnique({
+      where: { id: userId },
+      select: { webhookCallbackUrl: true, webhookCallbackSecret: true },
+    });
+
+    if (!account?.webhookCallbackUrl) return;
+
+    const payment = await prisma.payment.findUnique({ where: { id: paymentId } });
+    if (!payment) return;
+
+    const payload = {
+      event: 'payment.status_changed',
+      paymentId: payment.id,
+      externalId: payment.externalId,
+      gatewayPaymentId: payment.gatewayPaymentId,
+      fromStatus,
+      toStatus,
+      status: toStatus,
+      method: payment.method,
+      gateway: payment.gateway,
+      amount: payment.amount,
+      paidAt: payment.paidAt?.toISOString() || null,
+      payerName: payment.payerName,
+      payerEmail: payment.payerEmail,
+      payerDoc: payment.payerDoc,
+      metadata: payment.metadata,
+      timestamp: new Date().toISOString(),
+    };
+
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    if (account.webhookCallbackSecret) {
+      const crypto = await import('crypto');
+      const signature = crypto.createHmac('sha256', account.webhookCallbackSecret)
+        .update(JSON.stringify(payload))
+        .digest('hex');
+      headers['X-Webhook-Signature'] = signature;
+    }
+
+    let success = false;
+    let error: string | undefined;
+    let statusCode: number | undefined;
+
+    try {
+      const res = await fetch(account.webhookCallbackUrl, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(payload),
+        signal: AbortSignal.timeout(10000),
+      });
+      statusCode = res.status;
+      success = res.ok;
+      if (!res.ok) error = `HTTP ${res.status}`;
+    } catch (e: any) {
+      error = e.message;
+    }
+
+    await prisma.webhookLog.create({
+      data: {
+        userId,
+        paymentId,
+        gateway: payment.gateway,
+        direction: 'OUTBOUND',
+        url: account.webhookCallbackUrl,
+        body: payload as any,
+        statusCode,
+        success,
+        error,
+        processedAt: new Date(),
+      },
+    });
+  }
+
+  private async calculateFees(userId: string, method: PaymentMethod, amount: number) {
+    const rule = await prisma.feeRule.findFirst({ where: { userId, method, isActive: true } });
+    if (!rule) return { finalAmount: amount, feeAmount: 0 };
+
+    const feeAmount = rule.feeType === 'PERCENTAGE'
+      ? Math.round(amount * (rule.feeValue / 100))
+      : Math.round(rule.feeValue);
+
+    return { finalAmount: amount + feeAmount, feeAmount };
+  }
+
+  private format(payment: any) {
+    const { gatewayRaw, gatewayConfigId, ...rest } = payment;
+    return {
+      ...rest,
+      amountFormatted: `R$ ${(rest.amount / 100).toFixed(2).replace('.', ',')}`,
+      originalAmountFormatted: rest.originalAmount ? `R$ ${(rest.originalAmount / 100).toFixed(2).replace('.', ',')}` : undefined,
+    };
+  }
+}
+
+export const paymentService = new PaymentService();
