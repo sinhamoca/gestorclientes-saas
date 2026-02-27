@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>GestãoPro - Gestão de Clientes</title>
+    <meta name="description" content="GestãoPro - Sistema de Gestão de Clientes IPTV" />
+    <meta name="author" content="GestãoPro" />
+    <meta property="og:title" content="GestãoPro" />
+    <meta property="og:description" content="GestãoPro - Sistema de Gestão de Clientes IPTV" />
+    <meta property="og:type" content="website" />
+    <meta property="og:image" content="" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:site" content="@GestãoPro" />
+    <meta name="twitter:image" content="" />
+    <!-- Force revalidation of cached resources -->
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+    <meta http-equiv="Pragma" content="no-cache" />
+    <meta http-equiv="Expires" content="0" />
+    <style>
+      #app-freeze-banner {
+        display: none;
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        background: #fef3c7;
+        border-top: 2px solid #f59e0b;
+        padding: 16px;
+        z-index: 99999;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        text-align: center;
+        box-shadow: 0 -4px 12px rgba(0,0,0,0.15);
+      }
+      #app-freeze-banner p {
+        margin: 0 0 12px 0;
+        color: #92400e;
+        font-size: 14px;
+      }
+      #app-freeze-banner button {
+        background: #dc2626;
+        color: white;
+        border: none;
+        padding: 10px 24px;
+        border-radius: 6px;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        margin: 0 6px;
+      }
+      #app-freeze-banner button:hover {
+        background: #b91c1c;
+      }
+      #app-freeze-banner .btn-secondary {
+        background: #2563eb;
+      }
+      #app-freeze-banner .btn-secondary:hover {
+        background: #1d4ed8;
+      }
+      @media (prefers-color-scheme: dark) {
+        #app-freeze-banner {
+          background: #422006;
+          border-top-color: #b45309;
+        }
+        #app-freeze-banner p {
+          color: #fde68a;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
+
+    <!-- Anti-freeze: runs independently of React -->
+    <div id="app-freeze-banner">
+      <p>⚠️ O sistema está demorando para carregar. Isso pode ser um problema de sessão ou cache.</p>
+      <button onclick="forceLogout()">🔓 Forçar Logout</button>
+      <button class="btn-secondary" onclick="hardReload()">🔄 Recarregar</button>
+    </div>
+
+    <script>
+      // Anti-freeze detector: shows banner if React doesn't render within 10s
+      (function() {
+        var timer = setTimeout(function() {
+          // Check if React actually rendered something inside #root
+          var root = document.getElementById('root');
+          if (!root || root.children.length === 0 || root.innerHTML.trim() === '') {
+            document.getElementById('app-freeze-banner').style.display = 'block';
+          }
+        }, 10000);
+
+        // If React renders, cancel the timer
+        var observer = new MutationObserver(function(mutations) {
+          var root = document.getElementById('root');
+          if (root && root.children.length > 0) {
+            clearTimeout(timer);
+            observer.disconnect();
+            // Also hide banner if it was briefly shown
+            document.getElementById('app-freeze-banner').style.display = 'none';
+          }
+        });
+
+        var root = document.getElementById('root');
+        if (root) {
+          observer.observe(root, { childList: true, subtree: true });
+        }
+      })();
+
+      function forceLogout() {
+        try {
+          // Clear all Supabase auth data
+          var keys = Object.keys(localStorage);
+          for (var i = 0; i < keys.length; i++) {
+            if (keys[i].indexOf('supabase') !== -1 || keys[i].indexOf('sb-') !== -1) {
+              localStorage.removeItem(keys[i]);
+            }
+          }
+          sessionStorage.clear();
+        } catch(e) {}
+        window.location.href = '/auth';
+      }
+
+      function hardReload() {
+        // Force bypass cache
+        if ('caches' in window) {
+          caches.keys().then(function(names) {
+            for (var i = 0; i < names.length; i++) {
+              caches.delete(names[i]);
+            }
+          });
+        }
+        window.location.reload(true);
+      }
+    </script>
+
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
