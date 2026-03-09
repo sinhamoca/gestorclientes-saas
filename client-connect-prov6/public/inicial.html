@@ -1,0 +1,1204 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Super Gestor Pro — Gestão completa para revendedores IPTV</title>
+  <meta name="description" content="Gerencie clientes, automatize cobranças via PIX, envie lembretes por WhatsApp e renove nos painéis IPTV automaticamente.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --bg-deep: #060609;
+      --bg-card: rgba(255,255,255,0.02);
+      --border: rgba(255,255,255,0.06);
+      --accent: #8b5cf6;
+      --accent-light: #a78bfa;
+      --accent-glow: rgba(139,92,246,0.15);
+      --cyan: #06b6d4;
+      --emerald: #10b981;
+      --amber: #f59e0b;
+      --pink: #ec4899;
+      --text: rgba(255,255,255,0.88);
+      --text-dim: rgba(255,255,255,0.45);
+      --text-muted: rgba(255,255,255,0.25);
+      --radius: 16px;
+      --font: 'Outfit', -apple-system, sans-serif;
+      --mono: 'JetBrains Mono', monospace;
+    }
+
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: var(--font);
+      background: var(--bg-deep);
+      color: var(--text);
+      line-height: 1.6;
+      overflow-x: hidden;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ── Noise overlay ── */
+    body::before {
+      content: '';
+      position: fixed; inset: 0;
+      opacity: 0.025;
+      pointer-events: none;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+      z-index: 0;
+    }
+
+    .container { max-width: 1120px; margin: 0 auto; padding: 0 24px; position: relative; z-index: 1; }
+    .glow-line { height: 1px; background: linear-gradient(90deg, transparent, rgba(139,92,246,0.3), transparent); }
+
+    /* ── Animations ── */
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(30px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes float { 0%,100%{ transform: translateY(0); } 50%{ transform: translateY(-8px); } }
+    @keyframes shimmer { 0%{ background-position: -200% 0; } 100%{ background-position: 200% 0; } }
+    @keyframes scrollX { 0%{ transform: translateX(0); } 100%{ transform: translateX(-50%); } }
+    @keyframes pulseRing {
+      0% { box-shadow: 0 0 0 0 rgba(139,92,246,0.5); }
+      70% { box-shadow: 0 0 0 10px rgba(139,92,246,0); }
+      100% { box-shadow: 0 0 0 0 rgba(139,92,246,0); }
+    }
+    @keyframes lockPulse {
+      0%,100% { filter: drop-shadow(0 0 8px rgba(16,185,129,0.4)); }
+      50% { filter: drop-shadow(0 0 20px rgba(16,185,129,0.7)); }
+    }
+
+    .fade-up { animation: fadeUp 0.7s ease-out both; }
+    .delay-1 { animation-delay: 0.1s; }
+    .delay-2 { animation-delay: 0.2s; }
+    .delay-3 { animation-delay: 0.3s; }
+    .delay-4 { animation-delay: 0.4s; }
+    .delay-5 { animation-delay: 0.5s; }
+
+    /* ── NAV ── */
+    .nav {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+      transition: all 0.3s;
+      background: transparent;
+    }
+    .nav.scrolled {
+      background: rgba(6,6,9,0.85);
+      backdrop-filter: blur(20px);
+      border-bottom: 1px solid var(--border);
+    }
+    .nav-inner {
+      max-width: 1120px; margin: 0 auto; padding: 0 24px;
+      height: 64px; display: flex; align-items: center; justify-content: space-between;
+    }
+    .nav-logo { display: flex; align-items: center; gap: 10px; text-decoration: none; }
+    .nav-logo-icon {
+      width: 34px; height: 34px; border-radius: 10px;
+      background: linear-gradient(135deg, var(--accent), #7c3aed);
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 800; font-size: 13px; color: white;
+    }
+    .nav-logo-text { font-weight: 600; font-size: 15px; color: white; letter-spacing: -0.3px; }
+    .nav-logo-text span { color: var(--accent-light); }
+    .nav-links { display: flex; align-items: center; gap: 32px; }
+    .nav-links a { color: var(--text-dim); text-decoration: none; font-size: 13px; font-weight: 500; transition: color 0.2s; }
+    .nav-links a:hover { color: white; }
+    .nav-cta {
+      padding: 8px 20px; border-radius: 50px; background: var(--accent);
+      color: white; font-size: 13px; font-weight: 600; text-decoration: none;
+      transition: all 0.2s; border: none; cursor: pointer;
+    }
+    .nav-cta:hover { background: var(--accent-light); transform: translateY(-1px); }
+
+    .mobile-toggle { display: none; background: none; border: none; color: var(--text-dim); cursor: pointer; padding: 8px; }
+    .mobile-menu { display: none; }
+
+    @media (max-width: 768px) {
+      .nav-links, .nav-cta-wrap { display: none; }
+      .mobile-toggle { display: block; }
+      .mobile-menu.open {
+        display: flex; flex-direction: column; gap: 8px;
+        position: absolute; top: 64px; left: 0; right: 0;
+        background: rgba(6,6,9,0.95); backdrop-filter: blur(20px);
+        border-bottom: 1px solid var(--border); padding: 16px 24px;
+      }
+      .mobile-menu a { color: var(--text-dim); text-decoration: none; font-size: 14px; padding: 8px 0; }
+    }
+
+    /* ── HERO ── */
+    .hero {
+      position: relative; padding: 140px 0 80px; text-align: center;
+      overflow: hidden;
+    }
+    @media (min-width: 769px) { .hero { padding: 180px 0 100px; } }
+    .hero-grid {
+      position: absolute; inset: 0;
+      background-image:
+        linear-gradient(rgba(255,255,255,0.015) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,0.015) 1px, transparent 1px);
+      background-size: 64px 64px;
+      mask-image: radial-gradient(ellipse at center, black 15%, transparent 65%);
+      pointer-events: none;
+    }
+    .hero-glow {
+      position: absolute; width: 700px; height: 700px; border-radius: 50%;
+      filter: blur(140px); opacity: 0.12; pointer-events: none;
+    }
+    .hero-badge {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 6px 16px; border-radius: 50px;
+      border: 1px solid rgba(139,92,246,0.2); background: rgba(139,92,246,0.06);
+      color: var(--accent-light); font-size: 12px; font-weight: 600;
+      margin-bottom: 32px;
+    }
+    .hero-badge-dot {
+      width: 6px; height: 6px; border-radius: 50%; background: var(--accent-light);
+      animation: pulseRing 2s ease-out infinite;
+    }
+    .hero h1 {
+      font-size: clamp(2.2rem, 6vw, 4.2rem);
+      font-weight: 800; line-height: 1.1; letter-spacing: -1.5px;
+      margin-bottom: 20px;
+    }
+    .hero-gradient {
+      background: linear-gradient(135deg, #a78bfa, #c084fc, #e879f9);
+      -webkit-background-clip: text; background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .hero p {
+      font-size: clamp(1rem, 2vw, 1.15rem);
+      color: var(--text-dim); max-width: 580px; margin: 0 auto 36px;
+      line-height: 1.7;
+    }
+    .hero-buttons { display: flex; flex-wrap: wrap; justify-content: center; gap: 14px; margin-bottom: 56px; }
+    .btn-primary {
+      padding: 14px 32px; border-radius: 50px;
+      background: linear-gradient(135deg, var(--accent), #7c3aed);
+      color: white; font-weight: 700; font-size: 14px;
+      text-decoration: none; transition: all 0.25s; border: none; cursor: pointer;
+      box-shadow: 0 8px 30px rgba(139,92,246,0.25);
+    }
+    .btn-primary:hover { transform: translateY(-2px) scale(1.02); box-shadow: 0 12px 40px rgba(139,92,246,0.35); }
+    .btn-outline {
+      padding: 14px 32px; border-radius: 50px;
+      border: 1px solid var(--border); background: transparent;
+      color: var(--text-dim); font-weight: 600; font-size: 14px;
+      text-decoration: none; transition: all 0.25s; cursor: pointer;
+    }
+    .btn-outline:hover { border-color: rgba(255,255,255,0.15); color: white; }
+
+    .hero-stats {
+      display: grid; grid-template-columns: repeat(3, 1fr);
+      gap: 32px; max-width: 440px; margin: 0 auto;
+    }
+    .hero-stat-value {
+      font-family: var(--mono); font-size: clamp(1.4rem, 3vw, 1.8rem);
+      font-weight: 700; color: white;
+    }
+    .hero-stat-label { font-size: 11px; color: var(--text-muted); margin-top: 2px; text-transform: uppercase; letter-spacing: 0.5px; }
+
+    /* ── VIDEO ── */
+    .video-section { padding: 80px 0; position: relative; }
+    @media (min-width: 769px) { .video-section { padding: 100px 0; } }
+    .video-wrapper {
+      position: relative; max-width: 880px; margin: 0 auto;
+      border-radius: 20px; overflow: hidden;
+      border: 1px solid var(--border);
+      background: #000;
+      box-shadow: 0 40px 80px rgba(0,0,0,0.5), 0 0 0 1px rgba(139,92,246,0.1);
+    }
+    .video-wrapper video {
+      display: block; width: 100%; border-radius: 20px;
+    }
+    .video-caption {
+      text-align: center; margin-top: 16px;
+      font-size: 13px; color: var(--text-muted);
+    }
+
+    /* ── SCREENSHOTS ── */
+    .screenshots-section { padding: 80px 0; position: relative; }
+    @media (min-width: 769px) { .screenshots-section { padding: 100px 0; } }
+    .screenshots-grid {
+      display: flex; justify-content: center; gap: 20px;
+      flex-wrap: nowrap; padding: 0 20px;
+    }
+    @media (max-width: 768px) { .screenshots-grid { gap: 12px; padding: 0 12px; } }
+    .screenshot-frame {
+      flex: 0 0 auto; width: min(260px, 30vw);
+      border-radius: 28px; overflow: hidden;
+      border: 2px solid rgba(255,255,255,0.06);
+      background: #111118;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+      transition: transform 0.4s, box-shadow 0.4s;
+      position: relative;
+    }
+    .screenshot-frame:nth-child(2) { transform: translateY(-16px); }
+    .screenshot-frame:hover {
+      transform: translateY(-8px) scale(1.02);
+      box-shadow: 0 30px 80px rgba(139,92,246,0.15);
+    }
+    .screenshot-frame:nth-child(2):hover { transform: translateY(-24px) scale(1.02); }
+    .screenshot-frame::before {
+      content: ''; position: absolute; inset: -2px;
+      border-radius: 30px; padding: 2px;
+      background: linear-gradient(180deg, rgba(139,92,246,0.25), transparent 60%);
+      mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+      mask-composite: exclude; -webkit-mask-composite: xor;
+      pointer-events: none; z-index: 2;
+    }
+    .screenshot-notch {
+      position: relative; z-index: 3;
+      width: 100%; height: 28px;
+      display: flex; justify-content: center; align-items: flex-start;
+      background: #111118;
+    }
+    .screenshot-notch-pill {
+      width: 80px; height: 22px; border-radius: 0 0 14px 14px;
+      background: #000;
+    }
+    .screenshot-img-area {
+      width: 100%; aspect-ratio: 9/19.5;
+      background: linear-gradient(180deg, #14141e 0%, #1a1a28 50%, #14141e 100%);
+      display: flex; align-items: center; justify-content: center;
+      overflow: hidden;
+    }
+    .screenshot-img-area img {
+      width: 100%; height: 100%; object-fit: cover;
+    }
+    .screenshot-placeholder-content {
+      text-align: center; padding: 20px;
+    }
+    .screenshot-placeholder-content .icon { font-size: 32px; margin-bottom: 10px; }
+    .screenshot-placeholder-content .label {
+      font-size: 11px; color: var(--text-muted);
+      text-transform: uppercase; letter-spacing: 1px; font-weight: 600;
+    }
+
+    /* ── PROVIDERS MARQUEE ── */
+    .providers { padding: 56px 0; overflow: hidden; position: relative; }
+    .providers-track { display: flex; animation: scrollX 25s linear infinite; width: fit-content; }
+    .provider-chip {
+      flex-shrink: 0; margin: 0 10px;
+      display: flex; align-items: center; gap: 8px;
+      padding: 8px 20px; border-radius: 50px;
+      border: 1px solid var(--border); background: var(--bg-card);
+      font-size: 13px; color: var(--text-dim); font-weight: 500; white-space: nowrap;
+    }
+    .provider-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+    .providers-fade-l, .providers-fade-r {
+      position: absolute; top: 0; bottom: 0; width: 100px; z-index: 5; pointer-events: none;
+    }
+    .providers-fade-l { left: 0; background: linear-gradient(90deg, var(--bg-deep), transparent); }
+    .providers-fade-r { right: 0; background: linear-gradient(-90deg, var(--bg-deep), transparent); }
+
+    /* ── SECURITY HIGHLIGHT ── */
+    .security-section {
+      padding: 80px 0; position: relative;
+    }
+    .security-card {
+      max-width: 820px; margin: 0 auto;
+      border-radius: 24px; overflow: hidden;
+      border: 1px solid rgba(16,185,129,0.15);
+      background: linear-gradient(135deg, rgba(16,185,129,0.04), rgba(6,182,212,0.02));
+      position: relative;
+    }
+    .security-card::before {
+      content: ''; position: absolute; inset: -1px;
+      border-radius: 25px; padding: 1px;
+      background: linear-gradient(135deg, rgba(16,185,129,0.3), transparent 50%, rgba(6,182,212,0.2));
+      mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+      mask-composite: exclude; -webkit-mask-composite: xor;
+      pointer-events: none;
+    }
+    .security-inner {
+      display: flex; align-items: center; gap: 40px;
+      padding: 48px;
+    }
+    @media (max-width: 768px) {
+      .security-inner { flex-direction: column; text-align: center; gap: 24px; padding: 32px 24px; }
+    }
+    .security-icon-wrap {
+      flex-shrink: 0; width: 88px; height: 88px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(16,185,129,0.1), transparent 70%);
+      display: flex; align-items: center; justify-content: center;
+      animation: lockPulse 3s ease-in-out infinite;
+    }
+    .security-icon-wrap svg { width: 40px; height: 40px; color: var(--emerald); }
+    .security-content h3 {
+      font-size: 1.3rem; font-weight: 700; margin-bottom: 8px; color: white;
+    }
+    .security-content h3 span { color: var(--emerald); }
+    .security-content p { font-size: 14px; color: var(--text-dim); line-height: 1.7; }
+    .security-badges { display: flex; gap: 8px; margin-top: 16px; flex-wrap: wrap; }
+    @media (max-width: 768px) { .security-badges { justify-content: center; } }
+    .security-badge {
+      display: inline-flex; align-items: center; gap: 5px;
+      padding: 5px 12px; border-radius: 50px; font-size: 11px; font-weight: 600;
+      border: 1px solid rgba(16,185,129,0.2); background: rgba(16,185,129,0.06);
+      color: rgba(16,185,129,0.8);
+    }
+    .security-badge svg { width: 12px; height: 12px; }
+
+    /* ── FEATURES ── */
+    .features { padding: 80px 0; }
+    @media (min-width: 769px) { .features { padding: 100px 0; } }
+    .section-eyebrow {
+      font-size: 11px; text-transform: uppercase; letter-spacing: 3px;
+      color: rgba(139,92,246,0.5); font-weight: 600; margin-bottom: 10px;
+    }
+    .section-title {
+      font-size: clamp(1.6rem, 4vw, 2.4rem); font-weight: 800;
+      letter-spacing: -0.8px; margin-bottom: 48px; line-height: 1.2;
+    }
+    .section-title .dim { color: var(--text-muted); }
+    .features-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+    @media (max-width: 900px) { .features-grid { grid-template-columns: repeat(2, 1fr); } }
+    @media (max-width: 580px) { .features-grid { grid-template-columns: 1fr; } }
+    .feature-card {
+      padding: 28px; border-radius: var(--radius);
+      border: 1px solid var(--border); background: var(--bg-card);
+      transition: all 0.3s; position: relative; overflow: hidden;
+    }
+    .feature-card::before {
+      content: ''; position: absolute; top: 0; left: -100%; width: 100%; height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.02), transparent);
+      transition: left 0.5s;
+    }
+    .feature-card:hover::before { left: 100%; }
+    .feature-card:hover { border-color: rgba(255,255,255,0.1); background: rgba(255,255,255,0.03); }
+    .feature-emoji { font-size: 28px; margin-bottom: 14px; display: block; transition: transform 0.3s; }
+    .feature-card:hover .feature-emoji { transform: scale(1.15); }
+    .feature-card h3 { font-size: 15px; font-weight: 700; margin-bottom: 6px; }
+    .feature-card p { font-size: 13px; color: var(--text-dim); line-height: 1.65; }
+
+    /* ── WORKFLOW ── */
+    .workflow { padding: 80px 0; }
+    @media (min-width: 769px) { .workflow { padding: 100px 0; } }
+    .workflow-steps { max-width: 640px; margin: 0 auto; position: relative; }
+    .workflow-line {
+      position: absolute; left: 24px; top: 36px; bottom: 36px; width: 1px;
+      background: linear-gradient(to bottom, rgba(139,92,246,0.3), rgba(236,72,153,0.2), transparent);
+    }
+    @media (min-width: 769px) { .workflow-line { left: 28px; } }
+    .workflow-step { display: flex; gap: 20px; padding-bottom: 36px; position: relative; }
+    @media (min-width: 769px) { .workflow-step { gap: 28px; } }
+    .step-icon {
+      flex-shrink: 0; width: 48px; height: 48px; border-radius: 14px;
+      display: flex; align-items: center; justify-content: center;
+      font-family: var(--mono); font-weight: 700; font-size: 13px; color: white;
+      position: relative; z-index: 2;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+    }
+    @media (min-width: 769px) { .step-icon { width: 56px; height: 56px; border-radius: 16px; } }
+    .step-text { padding-top: 6px; }
+    @media (min-width: 769px) { .step-text { padding-top: 10px; } }
+    .step-text h3 { font-size: 15px; font-weight: 700; margin-bottom: 4px; }
+    .step-text p { font-size: 13px; color: var(--text-dim); line-height: 1.65; }
+
+    /* ── PRICING ── */
+    .pricing { padding: 80px 0; position: relative; }
+    @media (min-width: 769px) { .pricing { padding: 100px 0; } }
+    .pricing-toggle {
+      display: inline-flex; padding: 4px; border-radius: 50px;
+      background: rgba(255,255,255,0.04); border: 1px solid var(--border);
+      margin-bottom: 40px;
+    }
+    .pricing-toggle button {
+      padding: 8px 24px; border-radius: 50px; border: none;
+      font-family: var(--font); font-size: 13px; font-weight: 600;
+      cursor: pointer; transition: all 0.25s; background: transparent;
+      color: var(--text-dim);
+    }
+    .pricing-toggle button.active {
+      background: var(--accent); color: white;
+      box-shadow: 0 4px 16px rgba(139,92,246,0.3);
+    }
+
+    .plans-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; max-width: 900px; margin: 0 auto; }
+    @media (max-width: 900px) { .plans-grid { grid-template-columns: 1fr; max-width: 400px; } }
+
+    .plan-card {
+      border-radius: 20px; padding: 28px;
+      border: 1px solid var(--border); background: var(--bg-card);
+      transition: all 0.3s; position: relative;
+    }
+    .plan-card:hover { transform: translateY(-4px); }
+    .plan-card.popular {
+      border-color: rgba(139,92,246,0.3); background: rgba(139,92,246,0.04);
+      box-shadow: 0 20px 60px rgba(139,92,246,0.08);
+    }
+    .plan-popular-tag {
+      position: absolute; top: -11px; left: 50%; transform: translateX(-50%);
+      padding: 3px 14px; border-radius: 50px; background: var(--accent);
+      font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px;
+      color: white;
+    }
+    .plan-name { font-size: 17px; font-weight: 700; margin-bottom: 2px; }
+    .plan-desc { font-size: 12px; color: var(--text-muted); margin-bottom: 16px; }
+    .plan-price {
+      display: flex; align-items: baseline; gap: 4px; margin-bottom: 20px;
+    }
+    .plan-currency { font-size: 12px; color: var(--text-dim); }
+    .plan-value { font-family: var(--mono); font-size: 2.4rem; font-weight: 700; }
+    .plan-period { font-size: 13px; color: var(--text-muted); }
+    .plan-features { list-style: none; margin-bottom: 22px; }
+    .plan-features li {
+      display: flex; align-items: flex-start; gap: 8px;
+      font-size: 13px; color: var(--text-dim); padding: 4px 0;
+    }
+    .plan-features li svg { flex-shrink: 0; margin-top: 2px; }
+    .plan-features li.excluded { opacity: 0.35; }
+    .plan-features li.excluded span { text-decoration: line-through; }
+    .plan-btn {
+      width: 100%; padding: 12px; border-radius: 12px;
+      border: none; font-family: var(--font); font-size: 13px; font-weight: 700;
+      cursor: pointer; transition: all 0.25s;
+    }
+    .plan-btn-primary { background: var(--accent); color: white; box-shadow: 0 4px 16px rgba(139,92,246,0.2); }
+    .plan-btn-primary:hover { background: var(--accent-light); }
+    .plan-btn-secondary { background: rgba(255,255,255,0.05); color: var(--text-dim); }
+    .plan-btn-secondary:hover { background: var(--accent); color: white; }
+
+    /* Admin plans */
+    .admin-plans { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; max-width: 660px; margin: 0 auto; }
+    @media (max-width: 640px) { .admin-plans { grid-template-columns: 1fr; max-width: 340px; } }
+    .admin-card {
+      border-radius: 20px; padding: 24px;
+      border: 1px solid var(--border); background: var(--bg-card);
+      transition: all 0.3s; position: relative; overflow: hidden;
+    }
+    .admin-card::before {
+      content: ''; position: absolute; top: 0; left: -100%; width: 100%; height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.02), transparent);
+      transition: left 0.5s;
+    }
+    .admin-card:hover::before { left: 100%; }
+    .admin-card:hover { border-color: rgba(139,92,246,0.2); }
+    .admin-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+    .admin-count {
+      width: 40px; height: 40px; border-radius: 12px;
+      background: linear-gradient(135deg, rgba(139,92,246,0.15), rgba(124,58,237,0.1));
+      border: 1px solid rgba(139,92,246,0.2);
+      display: flex; align-items: center; justify-content: center;
+      font-family: var(--mono); font-weight: 700; font-size: 14px; color: var(--accent-light);
+    }
+    .admin-name { font-size: 16px; font-weight: 700; }
+    .admin-sub { font-size: 12px; color: var(--text-muted); }
+    .admin-price { display: flex; align-items: baseline; gap: 4px; margin-bottom: 2px; }
+    .admin-per-user { font-size: 12px; color: var(--accent-light); margin-bottom: 14px; }
+    .admin-custom {
+      margin-top: 14px; padding: 14px;
+      border-radius: 14px; border: 1px solid var(--border); background: var(--bg-card);
+      text-align: center; font-size: 12px; color: var(--text-muted);
+    }
+    .admin-custom a { color: var(--accent-light); text-decoration: underline; }
+
+    #admin-plans-wrap { display: none; }
+
+    /* ── FAQ ── */
+    .faq { padding: 80px 0; }
+    @media (min-width: 769px) { .faq { padding: 100px 0; } }
+    .faq-list { max-width: 620px; margin: 0 auto; }
+    .faq-item {
+      border: 1px solid var(--border); border-radius: var(--radius);
+      margin-bottom: 8px; overflow: hidden; transition: background 0.3s;
+    }
+    .faq-item:hover { background: rgba(255,255,255,0.015); }
+    .faq-q {
+      width: 100%; display: flex; align-items: center; justify-content: space-between;
+      padding: 18px 20px; background: none; border: none;
+      font-family: var(--font); font-size: 14px; font-weight: 600;
+      color: var(--text); cursor: pointer; text-align: left;
+    }
+    .faq-q span.icon { font-size: 18px; color: var(--text-muted); transition: transform 0.3s; flex-shrink: 0; margin-left: 12px; }
+    .faq-a {
+      max-height: 0; overflow: hidden; transition: max-height 0.3s, padding 0.3s;
+      padding: 0 20px; font-size: 13px; color: var(--text-dim); line-height: 1.7;
+    }
+    .faq-item.open .faq-q span.icon { transform: rotate(45deg); }
+    .faq-item.open .faq-a { max-height: 200px; padding: 0 20px 18px; }
+
+    /* ── CTA ── */
+    .cta-section { padding: 100px 0 60px; text-align: center; position: relative; }
+    @media (min-width: 769px) { .cta-section { padding: 120px 0 80px; } }
+    .cta-section h2 {
+      font-size: clamp(1.6rem, 4vw, 2.4rem); font-weight: 800;
+      letter-spacing: -0.8px; margin-bottom: 12px; line-height: 1.2;
+    }
+    .cta-section p { color: var(--text-dim); margin-bottom: 28px; font-size: 14px; }
+
+    /* ── FOOTER ── */
+    footer {
+      border-top: 1px solid var(--border); padding: 32px 0;
+    }
+    .footer-inner {
+      display: flex; align-items: center; justify-content: space-between;
+      flex-wrap: wrap; gap: 16px;
+    }
+    .footer-links { display: flex; gap: 24px; }
+    .footer-links a { color: var(--text-muted); text-decoration: none; font-size: 12px; transition: color 0.2s; }
+    .footer-links a:hover { color: var(--text-dim); }
+    .footer-copy { font-size: 11px; color: rgba(255,255,255,0.15); }
+
+    /* ── Utilities ── */
+    .text-center { text-align: center; }
+    .hidden { display: none !important; }
+  </style>
+</head>
+<body>
+
+  <!-- ═══ NAV ═══ -->
+  <nav class="nav" id="nav">
+    <div class="nav-inner">
+      <a href="#" class="nav-logo">
+        <div class="nav-logo-icon">SG</div>
+        <div class="nav-logo-text">Super Gestor<span>Pro</span></div>
+      </a>
+      <div class="nav-links">
+        <a href="#features">Recursos</a>
+        <a href="#security">Segurança</a>
+        <a href="#pricing">Planos</a>
+        <a href="#faq">FAQ</a>
+      </div>
+      <div class="nav-cta-wrap">
+        <a href="#pricing" class="nav-cta">Testar 30 dias grátis</a>
+      </div>
+      <button class="mobile-toggle" onclick="document.getElementById('mobileMenu').classList.toggle('open')">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12h18M3 6h18M3 18h18"/></svg>
+      </button>
+    </div>
+    <div class="mobile-menu" id="mobileMenu">
+      <a href="#features" onclick="this.parentElement.classList.remove('open')">Recursos</a>
+      <a href="#security" onclick="this.parentElement.classList.remove('open')">Segurança</a>
+      <a href="#pricing" onclick="this.parentElement.classList.remove('open')">Planos</a>
+      <a href="#faq" onclick="this.parentElement.classList.remove('open')">FAQ</a>
+      <a href="#pricing" onclick="this.parentElement.classList.remove('open')" style="color:var(--accent-light);">Começar grátis →</a>
+    </div>
+  </nav>
+
+  <!-- ═══ HERO ═══ -->
+  <section class="hero">
+    <div class="hero-grid"></div>
+    <div class="hero-glow" style="top:-250px;left:50%;transform:translateX(-50%);background:radial-gradient(circle,#7c3aed,transparent)"></div>
+    <div class="hero-glow" style="top:100px;right:-250px;background:radial-gradient(circle,#06b6d4,transparent);opacity:0.06"></div>
+    <div class="container">
+      <div class="hero-badge fade-up delay-1">
+        <div class="hero-badge-dot"></div>
+        Plataforma completa para revendedores IPTV
+      </div>
+      <h1 class="fade-up delay-2">
+        Gerencie seus clientes.<br>
+        <span class="hero-gradient">Automatize tudo.</span>
+      </h1>
+      <p class="fade-up delay-3">
+        Cadastro de clientes, cobranças via PIX, lembretes por WhatsApp e
+        renovação automática nos painéis — tudo em um único sistema.
+      </p>
+      <div class="hero-buttons fade-up delay-4">
+        <a href="#pricing" class="btn-primary">Testar 30 dias grátis</a>
+        <a href="#video" class="btn-outline">Ver demonstração →</a>
+      </div>
+      <div class="hero-stats fade-up delay-5">
+        <div>
+          <div class="hero-stat-value">7</div>
+          <div class="hero-stat-label">Painéis suportados</div>
+        </div>
+        <div>
+          <div class="hero-stat-value">100%</div>
+          <div class="hero-stat-label">Automação</div>
+        </div>
+        <div>
+          <div class="hero-stat-value">24/7</div>
+          <div class="hero-stat-label">Funcionamento</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="glow-line"></div>
+
+  <!-- ═══ VIDEO ═══ -->
+  <section class="video-section" id="video">
+    <div class="container text-center">
+      <div class="section-eyebrow" style="color:rgba(6,182,212,0.5)">Demonstração</div>
+      <div class="section-title" style="margin-bottom:32px;">
+        Veja o sistema <span class="dim">em ação.</span>
+      </div>
+      <div class="video-wrapper">
+        <video controls preload="metadata" poster="/media/video-poster.jpg">
+          <source src="/media/demo.mp4" type="video/mp4">
+          Seu navegador não suporta vídeo.
+        </video>
+      </div>
+      <p class="video-caption">Demonstração completa do Super Gestor Pro</p>
+    </div>
+  </section>
+
+  <!-- ═══ SCREENSHOTS ═══ -->
+  <section class="screenshots-section">
+    <div class="container text-center">
+      <div class="section-eyebrow">Interface Mobile</div>
+      <div class="section-title" style="margin-bottom:36px;">
+        Controle total <span class="dim">na palma da mão.</span>
+      </div>
+      <div class="screenshots-grid">
+        <!-- Screenshot 1 -->
+        <div class="screenshot-frame">
+          <div class="screenshot-notch"><div class="screenshot-notch-pill"></div></div>
+          <div class="screenshot-img-area">
+            <img src="/media/screenshot1.png" alt="Dashboard">
+          </div>
+        </div>
+        <!-- Screenshot 2 -->
+        <div class="screenshot-frame">
+          <div class="screenshot-notch"><div class="screenshot-notch-pill"></div></div>
+          <div class="screenshot-img-area">
+            <img src="/media/screenshot2.png" alt="Clientes">
+          </div>
+        </div>
+        <!-- Screenshot 3 -->
+        <div class="screenshot-frame">
+          <div class="screenshot-notch"><div class="screenshot-notch-pill"></div></div>
+          <div class="screenshot-img-area">
+            <img src="/media/screenshot3.png" alt="WhatsApp">
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="glow-line"></div>
+
+  <!-- ═══ PROVIDERS ═══ -->
+  <section class="providers">
+    <div class="text-center" style="margin-bottom:32px;">
+      <p style="font-size:11px;text-transform:uppercase;letter-spacing:3px;color:var(--text-muted);font-weight:600;">
+        Painéis IPTV integrados
+      </p>
+    </div>
+    <div style="position:relative;">
+      <div class="providers-fade-l"></div>
+      <div class="providers-fade-r"></div>
+      <div class="providers-track">
+        <!-- x4 for seamless loop -->
+        <div class="provider-chip"><div class="provider-dot" style="background:#f59e0b"></div>Sigma</div>
+        <div class="provider-chip"><div class="provider-dot" style="background:#3b82f6"></div>Koffice</div>
+        <div class="provider-chip"><div class="provider-dot" style="background:#8b5cf6"></div>Uniplay</div>
+        <div class="provider-chip"><div class="provider-dot" style="background:#06b6d4"></div>CloudNation</div>
+        <div class="provider-chip"><div class="provider-dot" style="background:#ec4899"></div>Club</div>
+        <div class="provider-chip"><div class="provider-dot" style="background:#22c55e"></div>PainelFoda</div>
+        <div class="provider-chip"><div class="provider-dot" style="background:#f97316"></div>Rush</div>
+        <div class="provider-chip"><div class="provider-dot" style="background:#f59e0b"></div>Sigma</div>
+        <div class="provider-chip"><div class="provider-dot" style="background:#3b82f6"></div>Koffice</div>
+        <div class="provider-chip"><div class="provider-dot" style="background:#8b5cf6"></div>Uniplay</div>
+        <div class="provider-chip"><div class="provider-dot" style="background:#06b6d4"></div>CloudNation</div>
+        <div class="provider-chip"><div class="provider-dot" style="background:#ec4899"></div>Club</div>
+        <div class="provider-chip"><div class="provider-dot" style="background:#22c55e"></div>PainelFoda</div>
+        <div class="provider-chip"><div class="provider-dot" style="background:#f97316"></div>Rush</div>
+        <div class="provider-chip"><div class="provider-dot" style="background:#f59e0b"></div>Sigma</div>
+        <div class="provider-chip"><div class="provider-dot" style="background:#3b82f6"></div>Koffice</div>
+        <div class="provider-chip"><div class="provider-dot" style="background:#8b5cf6"></div>Uniplay</div>
+        <div class="provider-chip"><div class="provider-dot" style="background:#06b6d4"></div>CloudNation</div>
+        <div class="provider-chip"><div class="provider-dot" style="background:#ec4899"></div>Club</div>
+        <div class="provider-chip"><div class="provider-dot" style="background:#22c55e"></div>PainelFoda</div>
+        <div class="provider-chip"><div class="provider-dot" style="background:#f97316"></div>Rush</div>
+        <div class="provider-chip"><div class="provider-dot" style="background:#f59e0b"></div>Sigma</div>
+        <div class="provider-chip"><div class="provider-dot" style="background:#3b82f6"></div>Koffice</div>
+        <div class="provider-chip"><div class="provider-dot" style="background:#8b5cf6"></div>Uniplay</div>
+        <div class="provider-chip"><div class="provider-dot" style="background:#06b6d4"></div>CloudNation</div>
+        <div class="provider-chip"><div class="provider-dot" style="background:#ec4899"></div>Club</div>
+        <div class="provider-chip"><div class="provider-dot" style="background:#22c55e"></div>PainelFoda</div>
+        <div class="provider-chip"><div class="provider-dot" style="background:#f97316"></div>Rush</div>
+      </div>
+    </div>
+  </section>
+
+  <div class="glow-line"></div>
+
+  <!-- ═══ SECURITY ═══ -->
+  <section class="security-section" id="security">
+    <div class="container">
+      <div class="security-card">
+        <div class="security-inner">
+          <div class="security-icon-wrap">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+              <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+              <circle cx="12" cy="16.5" r="1.5"/>
+              <line x1="12" y1="18" x2="12" y2="19.5"/>
+            </svg>
+          </div>
+          <div class="security-content">
+            <h3>Seus clientes estão <span>100% protegidos</span></h3>
+            <p>
+              Todos os números de telefone dos seus clientes são <strong style="color:rgba(16,185,129,0.9)">criptografados no banco de dados</strong> usando AES-256-GCM.
+              Isso significa que <strong style="color:white">nem o dono do sistema, nem qualquer pessoa que tente acessar o banco de dados</strong> consegue visualizar os números reais.
+              Somente o sistema em execução, com a chave correta, pode descriptografar — garantindo proteção total contra roubo de carteira de clientes.
+            </p>
+            <div class="security-badges">
+              <div class="security-badge">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                AES-256-GCM
+              </div>
+              <div class="security-badge">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                Criptografia ponta a ponta
+              </div>
+              <div class="security-badge">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                Anti-roubo de carteira
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="glow-line"></div>
+
+  <!-- ═══ FEATURES ═══ -->
+  <section class="features" id="features">
+    <div class="container text-center">
+      <div class="section-eyebrow">Recursos</div>
+      <div class="section-title">
+        Tudo que você precisa. <span class="dim">Nada que não precisa.</span>
+      </div>
+      <div class="features-grid">
+        <div class="feature-card">
+          <span class="feature-emoji">👥</span>
+          <h3>Gestão Completa</h3>
+          <p>Cadastre clientes, planos, servidores e opções com controle total. Importe planilhas com mapeamento automático inteligente.</p>
+        </div>
+        <div class="feature-card">
+          <span class="feature-emoji">💬</span>
+          <h3>WhatsApp Integrado</h3>
+          <p>Envie lembretes automáticos de vencimento, campanhas em massa com templates variáveis, imagens e vídeos.</p>
+        </div>
+        <div class="feature-card">
+          <span class="feature-emoji">💳</span>
+          <h3>Pagamentos Automatizados</h3>
+          <p>PIX e cartão via Mercado Pago com webhook. O cliente paga e o sistema renova automaticamente.</p>
+        </div>
+        <div class="feature-card">
+          <span class="feature-emoji">🔄</span>
+          <h3>Renovação nos Painéis</h3>
+          <p>API que renova direto no Sigma, Koffice, Uniplay, CloudNation, Club, PainelFoda e Rush. Sem tocar no painel.</p>
+        </div>
+        <div class="feature-card">
+          <span class="feature-emoji">👑</span>
+          <h3>Modo Admin</h3>
+          <p>Crie sub-usuários com seus próprios clientes e configurações. Ideal para quem gerencia múltiplos revendedores.</p>
+        </div>
+        <div class="feature-card">
+          <span class="feature-emoji">📊</span>
+          <h3>Dashboard Inteligente</h3>
+          <p>Visão completa de vencimentos, clientes ativos, pagamentos pendentes e histórico de renovações.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ WORKFLOW ═══ -->
+  <section class="workflow">
+    <div class="container text-center">
+      <div class="section-eyebrow" style="color:rgba(6,182,212,0.5)">Como funciona</div>
+      <div class="section-title">
+        Do cadastro à renovação. <span class="dim">Automático.</span>
+      </div>
+      <div class="workflow-steps">
+        <div class="workflow-line"></div>
+        <div class="workflow-step">
+          <div class="step-icon" style="background:linear-gradient(135deg,#8b5cf6,#7c3aed)">01</div>
+          <div class="step-text">
+            <h3>Cadastre o cliente e plano</h3>
+            <p>Importe de planilha ou cadastre manualmente. O sistema mapeia automaticamente para o painel e opção corretos.</p>
+          </div>
+        </div>
+        <div class="workflow-step">
+          <div class="step-icon" style="background:linear-gradient(135deg,#a855f7,#9333ea)">02</div>
+          <div class="step-text">
+            <h3>Cliente recebe o link de pagamento</h3>
+            <p>Via WhatsApp automático com lembrete configurável. PIX gerado na hora ou checkout com cartão de crédito.</p>
+          </div>
+        </div>
+        <div class="workflow-step">
+          <div class="step-icon" style="background:linear-gradient(135deg,#d946ef,#c026d3)">03</div>
+          <div class="step-text">
+            <h3>Pagamento confirmado</h3>
+            <p>Webhook detecta o pagamento em tempo real. A data de vencimento é atualizada automaticamente.</p>
+          </div>
+        </div>
+        <div class="workflow-step">
+          <div class="step-icon" style="background:linear-gradient(135deg,#f97316,#ea580c)">04</div>
+          <div class="step-text">
+            <h3>Renovação no painel IPTV</h3>
+            <p>O sistema acessa o painel e renova o cliente. Sem você precisar abrir nenhuma tela. Se falhar, entra na fila de retry.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="glow-line"></div>
+
+  <!-- ═══ PRICING ═══ -->
+  <section class="pricing" id="pricing">
+    <div class="hero-glow" style="top:50%;left:50%;transform:translate(-50%,-50%);background:radial-gradient(circle,#7c3aed,transparent);opacity:0.05"></div>
+    <div class="container text-center">
+      <div class="section-eyebrow">Planos</div>
+      <div class="section-title" style="margin-bottom:8px;">
+        Escolha seu plano. <span class="dim">Escale quando quiser.</span>
+      </div>
+      <p style="font-size:14px;color:var(--text-dim);margin-bottom:8px;">
+        🎁 <strong style="color:var(--accent-light)">30 dias grátis</strong> em qualquer plano + <strong style="color:var(--cyan)">ajuda na migração</strong> dos seus clientes
+      </p>
+      <p style="font-size:12px;color:var(--text-muted);margin-bottom:28px;">
+        Sem cartão de crédito. Cancele quando quiser.
+      </p>
+
+      <div class="pricing-toggle">
+        <button class="active" id="toggleIndividual" onclick="showPlans('individual')">Individual</button>
+        <button id="toggleAdmin" onclick="showPlans('admin')">Admin / Revenda</button>
+      </div>
+
+      <!-- Individual Plans -->
+      <div id="individual-plans-wrap">
+        <div class="plans-grid">
+          <!-- Básico -->
+          <div class="plan-card">
+            <div class="plan-name">Básico</div>
+            <div class="plan-desc">Gestão + WhatsApp</div>
+            <div class="plan-price">
+              <span class="plan-currency">R$</span>
+              <span class="plan-value">20</span>
+              <span class="plan-period">/mês</span>
+            </div>
+            <ul class="plan-features">
+              <li>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+                <span>Cadastro ilimitado de clientes</span>
+              </li>
+              <li>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+                <span>Gestão de planos e servidores</span>
+              </li>
+              <li>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+                <span>Lembretes via WhatsApp</span>
+              </li>
+              <li>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+                <span>Campanhas em massa</span>
+              </li>
+              <li>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+                <span>Importador inteligente</span>
+              </li>
+              <li class="excluded">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M18 6L6 18M6 6l12 12"/></svg>
+                <span>Gateway de pagamentos</span>
+              </li>
+              <li class="excluded">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M18 6L6 18M6 6l12 12"/></svg>
+                <span>API de renovações</span>
+              </li>
+            </ul>
+            <button class="plan-btn plan-btn-secondary">Começar grátis</button>
+          </div>
+
+          <!-- Pro -->
+          <div class="plan-card popular">
+            <div class="plan-popular-tag">Popular</div>
+            <div class="plan-name">Pro</div>
+            <div class="plan-desc">Básico + Pagamentos</div>
+            <div class="plan-price">
+              <span class="plan-currency">R$</span>
+              <span class="plan-value">30</span>
+              <span class="plan-period">/mês</span>
+            </div>
+            <ul class="plan-features">
+              <li>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#8b5cf6" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+                <span>Tudo do plano Básico</span>
+              </li>
+              <li>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#8b5cf6" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+                <span>PIX automático (Mercado Pago)</span>
+              </li>
+              <li>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#8b5cf6" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+                <span>Checkout Pro (cartão de crédito)</span>
+              </li>
+              <li>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#8b5cf6" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+                <span>Webhooks de pagamento</span>
+              </li>
+              <li>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#8b5cf6" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+                <span>Renovação pós-pagamento</span>
+              </li>
+              <li>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#8b5cf6" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+                <span>Página de pagamento custom</span>
+              </li>
+              <li class="excluded">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M18 6L6 18M6 6l12 12"/></svg>
+                <span>API de renovações nos painéis</span>
+              </li>
+            </ul>
+            <button class="plan-btn plan-btn-primary">Começar grátis</button>
+          </div>
+
+          <!-- Completo -->
+          <div class="plan-card">
+            <div class="plan-name">Completo</div>
+            <div class="plan-desc">Tudo incluso</div>
+            <div class="plan-price">
+              <span class="plan-currency">R$</span>
+              <span class="plan-value">45</span>
+              <span class="plan-period">/mês</span>
+            </div>
+            <ul class="plan-features">
+              <li>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+                <span>Tudo do plano Pro</span>
+              </li>
+              <li>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+                <span>Renovação automática nos painéis</span>
+              </li>
+              <li>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+                <span>Sigma, Koffice, Uniplay +4</span>
+              </li>
+              <li>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+                <span>Multi-tela com sufixos</span>
+              </li>
+              <li>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+                <span>Logs de renovação em tempo real</span>
+              </li>
+              <li>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+                <span>Fila de retry automático</span>
+              </li>
+            </ul>
+            <button class="plan-btn plan-btn-secondary">Começar grátis</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Admin Plans -->
+      <div id="admin-plans-wrap">
+        <p style="font-size:13px;color:var(--text-dim);margin-bottom:24px;max-width:500px;margin-left:auto;margin-right:auto;">
+          Ideal para quem gerencia múltiplos revendedores. Todas as ferramentas inclusas para você e seus sub-usuários.
+        </p>
+        <div class="admin-plans">
+          <div class="admin-card">
+            <div class="admin-header">
+              <div><div class="admin-name">Admin 3</div><div class="admin-sub">Até 3 sub-usuários</div></div>
+              <div class="admin-count">3</div>
+            </div>
+            <div class="admin-price">
+              <span class="plan-currency">R$</span>
+              <span class="plan-value" style="font-size:1.8rem;">120</span>
+              <span class="plan-period">/mês</span>
+            </div>
+            <div class="admin-per-user">R$ 40/user — Tudo incluso</div>
+            <button class="plan-btn plan-btn-secondary">Escolher Admin 3</button>
+          </div>
+          <div class="admin-card">
+            <div class="admin-header">
+              <div><div class="admin-name">Admin 5</div><div class="admin-sub">Até 5 sub-usuários</div></div>
+              <div class="admin-count">5</div>
+            </div>
+            <div class="admin-price">
+              <span class="plan-currency">R$</span>
+              <span class="plan-value" style="font-size:1.8rem;">180</span>
+              <span class="plan-period">/mês</span>
+            </div>
+            <div class="admin-per-user">R$ 36/user — Tudo incluso</div>
+            <button class="plan-btn plan-btn-secondary">Escolher Admin 5</button>
+          </div>
+          <div class="admin-card">
+            <div class="admin-header">
+              <div><div class="admin-name">Admin 10</div><div class="admin-sub">Até 10 sub-usuários</div></div>
+              <div class="admin-count">10</div>
+            </div>
+            <div class="admin-price">
+              <span class="plan-currency">R$</span>
+              <span class="plan-value" style="font-size:1.8rem;">300</span>
+              <span class="plan-period">/mês</span>
+            </div>
+            <div class="admin-per-user">R$ 30/user — Tudo incluso</div>
+            <button class="plan-btn plan-btn-secondary">Escolher Admin 10</button>
+          </div>
+          <div class="admin-card">
+            <div class="admin-header">
+              <div><div class="admin-name">Admin 20</div><div class="admin-sub">Até 20 sub-usuários</div></div>
+              <div class="admin-count">20</div>
+            </div>
+            <div class="admin-price">
+              <span class="plan-currency">R$</span>
+              <span class="plan-value" style="font-size:1.8rem;">500</span>
+              <span class="plan-period">/mês</span>
+            </div>
+            <div class="admin-per-user">R$ 25/user — Tudo incluso</div>
+            <button class="plan-btn plan-btn-secondary">Escolher Admin 20</button>
+          </div>
+        </div>
+        <div class="admin-custom">
+          Precisa de mais de 20 usuários? <a href="#">Fale conosco</a> para um plano personalizado.
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="glow-line"></div>
+
+  <!-- ═══ FAQ ═══ -->
+  <section class="faq" id="faq">
+    <div class="container text-center">
+      <div class="section-eyebrow" style="color:var(--text-muted)">FAQ</div>
+      <div class="section-title">Perguntas frequentes</div>
+      <div class="faq-list">
+        <div class="faq-item">
+          <button class="faq-q" onclick="toggleFaq(this)">
+            Preciso ter conhecimento técnico?
+            <span class="icon">+</span>
+          </button>
+          <div class="faq-a">Não. O sistema é intuitivo e todo o setup técnico já vem configurado. Você só cadastra seus clientes e planos.</div>
+        </div>
+        <div class="faq-item">
+          <button class="faq-q" onclick="toggleFaq(this)">
+            Como funciona o período grátis?
+            <span class="icon">+</span>
+          </button>
+          <div class="faq-a">Você recebe 30 dias grátis do plano que escolher, com todas as funcionalidades ativas. Além disso, oferecemos ajuda completa na migração dos seus clientes de planilhas ou outros sistemas. Sem cartão de crédito, sem compromisso.</div>
+        </div>
+        <div class="faq-item">
+          <button class="faq-q" onclick="toggleFaq(this)">
+            O WhatsApp pode ser bloqueado?
+            <span class="icon">+</span>
+          </button>
+          <div class="faq-a">Utilizamos controle de taxa e envio espaçado para minimizar riscos. Campanhas possuem batch configurável e delays entre mensagens.</div>
+        </div>
+        <div class="faq-item">
+          <button class="faq-q" onclick="toggleFaq(this)">
+            Como funciona a renovação automática?
+            <span class="icon">+</span>
+          </button>
+          <div class="faq-a">Quando o cliente paga via PIX ou cartão, o webhook detecta o pagamento e envia a renovação direto no painel IPTV que você usa, sem intervenção manual.</div>
+        </div>
+        <div class="faq-item">
+          <button class="faq-q" onclick="toggleFaq(this)">
+            Meus clientes estão realmente seguros?
+            <span class="icon">+</span>
+          </button>
+          <div class="faq-a">Sim. Todos os números de telefone são criptografados com AES-256-GCM no banco de dados. Nem mesmo quem tem acesso direto ao servidor consegue visualizar os números. É impossível roubar sua carteira de clientes.</div>
+        </div>
+        <div class="faq-item">
+          <button class="faq-q" onclick="toggleFaq(this)">
+            Posso usar meu próprio gateway de pagamento?
+            <span class="icon">+</span>
+          </button>
+          <div class="faq-a">Atualmente suportamos Mercado Pago e Asaas. Novos gateways estão no roadmap, incluindo Stripe.</div>
+        </div>
+        <div class="faq-item">
+          <button class="faq-q" onclick="toggleFaq(this)">
+            O plano Admin inclui todas as ferramentas?
+            <span class="icon">+</span>
+          </button>
+          <div class="faq-a">Sim. No plano Admin, tanto você quanto seus sub-usuários têm acesso completo a todas as funcionalidades: WhatsApp, pagamentos e renovações automáticas.</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="glow-line"></div>
+
+  <!-- ═══ CTA ═══ -->
+  <section class="cta-section">
+    <div class="hero-glow" style="top:50%;left:50%;transform:translate(-50%,-50%);background:radial-gradient(circle,#7c3aed,transparent);opacity:0.08"></div>
+    <div class="container">
+      <h2>
+        Pronto para automatizar<br>
+        <span class="hero-gradient">sua revenda?</span>
+      </h2>
+      <p>Comece em menos de 5 minutos. 30 dias grátis. Ajuda na migração incluída.</p>
+      <a href="#pricing" class="btn-primary">Criar minha conta grátis</a>
+    </div>
+  </section>
+
+  <!-- ═══ FOOTER ═══ -->
+  <footer>
+    <div class="container">
+      <div class="footer-inner">
+        <a href="#" class="nav-logo" style="text-decoration:none;">
+          <div class="nav-logo-icon" style="width:28px;height:28px;font-size:11px;">SG</div>
+          <div class="nav-logo-text" style="font-size:13px;">Super Gestor<span>Pro</span></div>
+        </a>
+        <div class="footer-links">
+          <a href="#">Termos</a>
+          <a href="#">Privacidade</a>
+          <a href="#">Suporte</a>
+        </div>
+        <div class="footer-copy">© 2026 Super Gestor Pro. Todos os direitos reservados.</div>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    // Nav scroll effect
+    window.addEventListener('scroll', () => {
+      document.getElementById('nav').classList.toggle('scrolled', window.scrollY > 50);
+    });
+
+    // FAQ toggle
+    function toggleFaq(btn) {
+      const item = btn.parentElement;
+      const wasOpen = item.classList.contains('open');
+      // Close all
+      document.querySelectorAll('.faq-item').forEach(el => el.classList.remove('open'));
+      if (!wasOpen) item.classList.add('open');
+    }
+
+    // Plan toggle
+    function showPlans(type) {
+      const indiv = document.getElementById('individual-plans-wrap');
+      const admin = document.getElementById('admin-plans-wrap');
+      const btnI = document.getElementById('toggleIndividual');
+      const btnA = document.getElementById('toggleAdmin');
+      if (type === 'individual') {
+        indiv.style.display = 'block';
+        admin.style.display = 'none';
+        btnI.classList.add('active');
+        btnA.classList.remove('active');
+      } else {
+        indiv.style.display = 'none';
+        admin.style.display = 'block';
+        btnA.classList.add('active');
+        btnI.classList.remove('active');
+      }
+    }
+
+    // Intersection Observer for fade-up animations
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          entry.target.style.animationPlayState = 'running';
+        }
+      });
+    }, { threshold: 0.1 });
+    document.querySelectorAll('.fade-up').forEach(el => {
+      el.style.animationPlayState = 'paused';
+      observer.observe(el);
+    });
+  </script>
+</body>
+</html>

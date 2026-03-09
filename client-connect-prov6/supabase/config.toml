@@ -1,0 +1,34 @@
+project_id = "ejucuxeoxorythlrxapt"
+
+[functions.wuzapi-proxy]
+verify_jwt = false
+
+[functions.admin-users]
+verify_jwt = false
+
+[functions.public-payment]
+verify_jwt = false
+
+[functions.create-payment]
+verify_jwt = false
+
+[functions.mp-webhook]
+verify_jwt = false
+
+[functions.send-reminders]
+verify_jwt = false
+
+[functions.create-platform-payment]
+verify_jwt = false
+
+[functions.platform-mp-webhook]
+verify_jwt = false
+
+[functions.renew-client]
+verify_jwt = false
+
+[functions.sigma-packages]
+verify_jwt = false
+
+[functions.crypto-utils]
+verify_jwt = false
